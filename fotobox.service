@@ -1,0 +1,15 @@
+[Unit]
+Description=Fotobox – Raspberry Pi Photo System
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/Fotobox
+ExecStart=/home/pi/Fotobox/venv/bin/python server/app.py
+Restart=on-failure
+RestartSec=5
+Environment=FOTOBOX_PHOTO_DIR=/home/pi/photos
+
+[Install]
+WantedBy=multi-user.target
