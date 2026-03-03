@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fotobox</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <!-- Idle screen -->
+  <div id="screen-idle" class="screen active">
+    <div class="idle-content">
+      <h1>📸 Fotobox</h1>
+      <p class="hint pulse">Drücke den Button!</p>
+    </div>
+  </div>
+
+  <!-- Countdown screen -->
+  <div id="screen-countdown" class="screen">
+    <div class="countdown-content">
+      <p class="countdown-text">Achtung …</p>
+      <div id="countdown-dots" class="dots"></div>
+    </div>
+  </div>
+
+  <!-- Review screen (show captured photo) -->
+  <div id="screen-review" class="screen">
+    <img id="review-photo" src="" alt="Dein Foto" />
+  </div>
+
+  <!-- Error overlay -->
+  <div id="screen-error" class="screen">
+    <div class="error-content">
+      <p>⚠️ Fehler bei der Aufnahme</p>
+      <p id="error-message"></p>
+    </div>
+  </div>
+
+  <script>
+    const REVIEW_SECONDS = {{ review_seconds }};
+  </script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

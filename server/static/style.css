@@ -1,0 +1,110 @@
+/* === Fotobox – Kiosk UI Styles === */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #111;
+  color: #fff;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* ── Screens ─────────────────────────────────── */
+
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+.screen.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ── Idle ─────────────────────────────────────── */
+
+.idle-content {
+  text-align: center;
+}
+
+.idle-content h1 {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.hint {
+  font-size: 1.8rem;
+  color: #aaa;
+}
+
+.pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50%      { opacity: 1; }
+}
+
+/* ── Countdown ────────────────────────────────── */
+
+.countdown-content {
+  text-align: center;
+}
+
+.countdown-text {
+  font-size: 3rem;
+  margin-bottom: 2rem;
+}
+
+.dots {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #3b82f6;
+  transition: background 0.3s ease, opacity 0.3s ease;
+}
+
+.dot.off {
+  opacity: 0.15;
+}
+
+/* ── Review ───────────────────────────────────── */
+
+#screen-review img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* ── Error ─────────────────────────────────────── */
+
+.error-content {
+  text-align: center;
+  color: #f87171;
+  font-size: 2rem;
+}
+
+.error-content p:last-child {
+  font-size: 1.2rem;
+  margin-top: 1rem;
+  color: #aaa;
+}
