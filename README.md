@@ -70,7 +70,7 @@ Open `arduino/fotobox_trigger/fotobox_trigger.ino` in the Arduino IDE and upload
 
 ```bash
 source venv/bin/activate
-python server/app.py
+FOTOBOX_PHOTO_DIR=./photos python -m server.app
 ```
 
 The web UI will be available at `http://localhost:5000`.
