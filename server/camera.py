@@ -37,7 +37,7 @@ def capture_image() -> str:
 
 
     # ZUERST die Konfiguration setzen (falls gewünscht)
-    if CAPTURE_TARGET == =:
+    if CAPTURE_TARGET == 0:
         cmd += ["--set-config", "capturetarget=1"]
 
     # DANN erst das Bild aufnehmen und herunterladen
