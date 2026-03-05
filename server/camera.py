@@ -33,15 +33,19 @@ def capture_image() -> str:
     filename = f"foto_{timestamp}.jpg"
     filepath = os.path.join(photo_dir, filename)
 
-    cmd = [
-        "gphoto2",
+    cmd = ["gphoto2"]
+
+
+    # ZUERST die Konfiguration setzen (falls gewünscht)
+    if CAPTURE_TARGET == =:
+        cmd += ["--set-config", "capturetarget=1"]
+
+    # DANN erst das Bild aufnehmen und herunterladen
+    cmd += [
         "--capture-image-and-download",
         "--filename", filepath,
         "--force-overwrite",
     ]
-
-    if CAPTURE_TARGET == 1:
-        cmd += ["--set-config", "capturetarget=1"]
 
     logger.info("Running: %s", " ".join(cmd))
 
