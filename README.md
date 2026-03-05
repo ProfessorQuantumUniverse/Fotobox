@@ -56,7 +56,7 @@ sudo apt-get install -y gphoto2 libgphoto2-dev python3-pip python3-venv
 ### 2. Install Python Dependencies
 
 ```bash
-cd /home/pi/Fotobox
+cd ~/Fotobox
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
@@ -80,7 +80,7 @@ The web UI will be available at `http://localhost:5000`.
 To launch the browser in kiosk mode on the Raspberry Pi:
 
 ```bash
-chromium-browser --kiosk --noerrdialogs --disable-infobars http://localhost:5000
+chromium --kiosk --noerrdialogs --disable-infobars http://localhost:5000
 ```
 
 ## Configuration
