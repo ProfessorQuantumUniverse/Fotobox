@@ -4,17 +4,21 @@ Serves the kiosk UI and bridges serial events from the Arduino
 to the browser via Server-Sent Events (SSE).
 """
 
+import base64
+import io
 import json
 import logging
 import os
 import queue
+from threading import Lock, Thread, Timer
 from typing import Optional
-from threading import Timer
 
+import qrcode
 from flask import Flask, Response, jsonify, render_template, send_from_directory
 
+from server.access_point import create_ap, generate_ap_credentials, stop_ap
 from server.camera import capture_image
-from server.config import HOST, PHOTO_DIR, PORT, REVIEW_SECONDS
+from server.config import AP_IP, HOST, PHOTO_DIR, PORT, REVIEW_SECONDS
 from server.serial_reader import SerialReader
 
 logging.basicConfig(
@@ -28,6 +32,11 @@ app = Flask(__name__)
 # Thread-safe queue for pushing events to SSE clients
 event_queue: queue.Queue = queue.Queue()
 
+# ── Session tracking ──────────────────────────────────────────────────────
+
+_session_lock = Lock()
+_session_photos: list[str] = []  # filenames captured in the current session
+
 # ── Serial event handler ─────────────────────────────────────────────────
 
 def _on_serial_message(message: str) -> None:
@@ -39,6 +48,8 @@ def _on_serial_message(message: str) -> None:
         try:
             filepath = capture_image()
             filename = os.path.basename(filepath)
+            with _session_lock:
+                _session_photos.append(filename)
             event_queue.put({
                 "event": "photo_taken",
                 "data": {"filename": filename},
@@ -88,6 +99,46 @@ def serve_photo(filename):
 def status():
     """Health-check endpoint."""
     return jsonify({"status": "ok"})
+
+
+def _make_wifi_qr(ssid: str, password: str) -> str:
+    """Generate a WiFi QR code and return it as a base64 PNG data URI."""
+    wifi_string = f"WIFI:T:WPA;S:{ssid};P:{password};;"
+    img = qrcode.make(wifi_string)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    encoded = base64.b64encode(buf.getvalue()).decode("ascii")
+    return f"data:image/png;base64,{encoded}"
+
+
+@app.route("/session/finish", methods=["POST"])
+def session_finish():
+    """Finalise the current session, start an AP, and return QR code data."""
+    with _session_lock:
+        photos = list(_session_photos)
+        _session_photos.clear()
+
+    ssid, password = generate_ap_credentials()
+    qr_data_uri = _make_wifi_qr(ssid, password)
+
+    # Start the AP in a background thread; non-daemon so shutdown waits for it.
+    Thread(target=create_ap, args=(ssid, password)).start()
+
+    logger.info("Session finished: %d photo(s), AP SSID=%s", len(photos), ssid)
+    return jsonify({
+        "photos": photos,
+        "ssid": ssid,
+        "password": password,
+        "url": f"http://{AP_IP}:{PORT}/",
+        "qr": qr_data_uri,
+    })
+
+
+@app.route("/session/stop-ap", methods=["POST"])
+def session_stop_ap():
+    """Tear down the temporary Access Point."""
+    Thread(target=stop_ap).start()
+    return jsonify({"status": "stopping"})
 
 @app.route("/trigger", methods=["POST"])
 def trigger():

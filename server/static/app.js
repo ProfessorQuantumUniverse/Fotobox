@@ -7,17 +7,27 @@
   const screenIdle      = document.getElementById("screen-idle");
   const screenCountdown = document.getElementById("screen-countdown");
   const screenReview    = document.getElementById("screen-review");
+  const screenQr        = document.getElementById("screen-qr");
   const screenError     = document.getElementById("screen-error");
   const reviewPhoto     = document.getElementById("review-photo");
   const errorMessage    = document.getElementById("error-message");
   const countdownDots   = document.getElementById("countdown-dots");
 
-  let reviewTimeout = null;
+  // Review buttons
+  const btnMorePhotos   = document.getElementById("btn-more-photos");
+  const btnDone         = document.getElementById("btn-done");
+
+  // QR screen elements
+  const qrCodeImg       = document.getElementById("qr-code-img");
+  const qrSsid          = document.getElementById("qr-ssid");
+  const qrPassword      = document.getElementById("qr-password");
+  const qrUrl           = document.getElementById("qr-url");
+  const btnNewSession   = document.getElementById("btn-new-session");
 
   // ── Helpers ──────────────────────────────────────────
 
   function showScreen(screen) {
-    [screenIdle, screenCountdown, screenReview, screenError].forEach(function (s) {
+    [screenIdle, screenCountdown, screenReview, screenQr, screenError].forEach(function (s) {
       s.classList.remove("active");
     });
     screen.classList.add("active");
@@ -33,10 +43,6 @@
   }
 
   function returnToIdle() {
-    if (reviewTimeout) {
-      clearTimeout(reviewTimeout);
-      reviewTimeout = null;
-    }
     showScreen(screenIdle);
   }
 
@@ -66,7 +72,6 @@
         case "photo_taken":
           reviewPhoto.src = "/photos/" + msg.data.filename;
           showScreen(screenReview);
-          reviewTimeout = setTimeout(returnToIdle, (typeof REVIEW_SECONDS !== "undefined" ? REVIEW_SECONDS : 5) * 1000);
           break;
 
         case "error":
@@ -81,6 +86,46 @@
       source.close();
       setTimeout(connectSSE, 3000);
     };
+  }
+
+  // ── Review button handlers ────────────────────────────
+
+  if (btnMorePhotos) {
+    btnMorePhotos.addEventListener("click", function () {
+      returnToIdle();
+    });
+  }
+
+  if (btnDone) {
+    btnDone.addEventListener("click", function () {
+      btnDone.disabled = true;
+      fetch("/session/finish", { method: "POST" })
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+          qrCodeImg.src = data.qr;
+          qrSsid.textContent = data.ssid;
+          qrPassword.textContent = data.password;
+          qrUrl.textContent = data.url;
+          showScreen(screenQr);
+        })
+        .catch(function (err) {
+          console.error("session/finish error:", err);
+          returnToIdle();
+        })
+        .finally(function () {
+          btnDone.disabled = false;
+        });
+    });
+  }
+
+  // ── QR screen: start new session ────────────────────
+
+  if (btnNewSession) {
+    btnNewSession.addEventListener("click", function () {
+      fetch("/session/stop-ap", { method: "POST" })
+        .catch(function (err) { console.error("stop-ap error:", err); });
+      returnToIdle();
+    });
   }
 
     // ── WebUI Trigger ────────────────────────────────────

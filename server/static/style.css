@@ -89,10 +89,100 @@ html, body {
 
 /* ── Review ───────────────────────────────────── */
 
+#screen-review .review-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  max-height: 100vh;
+  padding: 1rem;
+}
+
 #screen-review img {
   max-width: 100%;
-  max-height: 100%;
+  max-height: 75vh;
   object-fit: contain;
+  border-radius: 8px;
+}
+
+.review-buttons {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: center;
+}
+
+/* ── Buttons ──────────────────────────────────── */
+
+.btn {
+  padding: 0.75rem 2rem;
+  font-size: 1.4rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.1s ease;
+  font-family: inherit;
+}
+
+.btn:hover {
+  opacity: 0.85;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.btn-secondary {
+  background: #374151;
+  color: #fff;
+}
+
+/* ── QR Code screen ───────────────────────────── */
+
+.qr-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  text-align: center;
+  padding: 2rem;
+}
+
+.qr-content h2 {
+  font-size: 2.5rem;
+}
+
+.qr-instruction {
+  font-size: 1.2rem;
+  color: #aaa;
+}
+
+#qr-code-img {
+  width: 220px;
+  height: 220px;
+  border-radius: 8px;
+  background: #fff;
+  padding: 8px;
+}
+
+.qr-credentials {
+  font-size: 1.1rem;
+  color: #d1d5db;
+  line-height: 1.8;
+}
+
+.qr-label {
+  color: #9ca3af;
+  font-weight: 600;
 }
 
 /* ── Error ─────────────────────────────────────── */

@@ -63,5 +63,10 @@ def capture_image() -> str:
     if not os.path.isfile(filepath):
         raise RuntimeError(f"Photo file not found after capture: {filepath}")
 
+    # Flush OS write-buffers to disk so the file is fully readable before
+    # the photo_taken SSE event is emitted to the browser.
+    with open(filepath, "rb") as fh:
+        os.fsync(fh.fileno())
+
     logger.info("Photo saved: %s", filepath)
     return filepath
