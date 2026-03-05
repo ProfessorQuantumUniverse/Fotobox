@@ -79,8 +79,8 @@ def create_ap(ssid: str, password: str) -> bool:
 def stop_ap() -> None:
     """Bring down and remove the temporary Access Point (best-effort)."""
     try:
-        _run(["nmcli", "connection", "down", AP_CONNECTION_NAME], check=False)
-        _run(["nmcli", "connection", "delete", AP_CONNECTION_NAME], check=False)
+        _run(["sudo", "nmcli", "connection", "down", AP_CONNECTION_NAME], check=False)
+        _run(["sudo", "nmcli", "connection", "delete", AP_CONNECTION_NAME], check=False)
         logger.info("Access point '%s' stopped", AP_CONNECTION_NAME)
     except FileNotFoundError:
         pass
