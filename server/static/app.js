@@ -83,5 +83,14 @@
     };
   }
 
+    // ── WebUI Trigger ────────────────────────────────────
+  const triggerBtn = document.getElementById("trigger-btn");
+  if (triggerBtn) {
+    triggerBtn.addEventListener("click", function() {
+      fetch("/trigger", { method: "POST" })
+        .catch(err => console.error("Trigger error:", err));
+    });
+  }
+
   connectSSE();
 })();
