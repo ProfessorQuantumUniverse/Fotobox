@@ -154,6 +154,22 @@ def trigger():
     
     return jsonify({"status": "triggered"})
 
+@app.route("/download")
+def download_gallery():
+    """Zeigt eine Galerie der frisch gemachten Fotos zum Download für das Handy an."""
+    # Wir nehmen die Fotos aus der aktuellen Session, die gerade beendet wurde.
+    # Da _session_photos beim Finish geleert wird, müssen wir sie trickreich übergeben,
+    # oder einfach die aktuellsten Dateien aus dem Ordner lesen.
+    # Der einfachste Weg für den Anfang: Zeige alle Fotos (oder sortiert die neuesten).
+    
+    files = []
+    if os.path.exists(PHOTO_DIR):
+        files = sorted(os.listdir(PHOTO_DIR), reverse=True)
+        # Nur JPGs anzeigen und auf die letzten z.B. 10 beschränken
+        files = [f for f in files if f.endswith(".jpg")][:10]
+        
+    return render_template("download.html", photos=files)
+
 
 # ── Startup ───────────────────────────────────────────────────────────────
 
