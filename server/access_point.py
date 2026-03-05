@@ -52,9 +52,9 @@ def create_ap(ssid: str, password: str) -> bool:
         logger.error("nmcli not found – cannot create access point")
         return False
 
+    # "sudo" vor nmcli setzen
     try:
-        _run([
-            "nmcli", "connection", "add",
+        _run(["sudo", "nmcli", "connection", "add",
             "type", "wifi",
             "ifname", AP_IFACE,
             "con-name", AP_CONNECTION_NAME,
@@ -65,7 +65,7 @@ def create_ap(ssid: str, password: str) -> bool:
             "wifi-sec.key-mgmt", "wpa-psk",
             "wifi-sec.psk", password,
         ])
-        _run(["nmcli", "connection", "up", AP_CONNECTION_NAME])
+        _run(["sudo", "nmcli", "connection", "up", AP_CONNECTION_NAME])
         logger.info("Access point '%s' started on %s", ssid, AP_IFACE)
         return True
     except subprocess.CalledProcessError as exc:
