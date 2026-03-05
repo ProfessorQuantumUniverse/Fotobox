@@ -129,7 +129,8 @@ def session_finish():
         "photos": photos,
         "ssid": ssid,
         "password": password,
-        "url": f"http://{AP_IP}:{PORT}/",
+        # Alt: "url": f"http://{AP_IP}:{PORT}/",
+        "url": f"http://{AP_IP}:{PORT}/download",
         "qr": qr_data_uri,
     })
 
