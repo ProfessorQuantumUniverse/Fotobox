@@ -23,9 +23,30 @@
     </div>
   </div>
 
-  <!-- Review screen (show captured photo) -->
+  <!-- Review screen (show captured photo + action buttons) -->
   <div id="screen-review" class="screen">
-    <img id="review-photo" src="" alt="Dein Foto" />
+    <div class="review-content">
+      <img id="review-photo" src="" alt="Dein Foto" />
+      <div class="review-buttons">
+        <button id="btn-more-photos" class="btn btn-secondary">📷 Mehr Fotos</button>
+        <button id="btn-done" class="btn btn-primary">✅ Fertig</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- QR code screen -->
+  <div id="screen-qr" class="screen">
+    <div class="qr-content">
+      <h2>📡 Fotos herunterladen</h2>
+      <p class="qr-instruction">WLAN verbinden und Seite öffnen:</p>
+      <img id="qr-code-img" src="" alt="WiFi QR Code" />
+      <div class="qr-credentials">
+        <p><span class="qr-label">WLAN:</span> <span id="qr-ssid"></span></p>
+        <p><span class="qr-label">Passwort:</span> <span id="qr-password"></span></p>
+        <p><span class="qr-label">URL:</span> <span id="qr-url"></span></p>
+      </div>
+      <button id="btn-new-session" class="btn btn-primary">🔄 Neue Session</button>
+    </div>
   </div>
 
   <!-- Error overlay -->

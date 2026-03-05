@@ -59,3 +59,48 @@ class TestRoutes:
         event_queue.put({"event": "test"})
         resp = client.get("/events")
         assert "text/event-stream" in resp.content_type
+
+
+class TestSessionFinish:
+    """Tests for the /session/finish endpoint."""
+
+    def test_session_finish_returns_qr_and_credentials(self, client):
+        """session/finish should return ssid, password, url, qr and photos."""
+        with patch("server.app.create_ap", return_value=True), \
+             patch("server.app._session_photos", ["foto_1.jpg", "foto_2.jpg"]):
+            resp = client.post("/session/finish")
+
+        assert resp.status_code == 200
+        data = json.loads(resp.data)
+        assert "ssid" in data
+        assert data["ssid"].startswith("Fotobox-")
+        assert "password" in data
+        assert "url" in data
+        assert "qr" in data
+        assert data["qr"].startswith("data:image/png;base64,")
+        assert "photos" in data
+
+    def test_session_finish_clears_session(self, client):
+        """session/finish should clear the in-memory session photo list."""
+        from server.app import _session_photos, _session_lock
+        with _session_lock:
+            _session_photos.clear()
+            _session_photos.append("foto_test.jpg")
+
+        with patch("server.app.create_ap", return_value=True):
+            resp = client.post("/session/finish")
+
+        assert resp.status_code == 200
+        data = json.loads(resp.data)
+        assert "foto_test.jpg" in data["photos"]
+
+        with _session_lock:
+            assert _session_photos == []
+
+    def test_session_stop_ap(self, client):
+        """session/stop-ap should return status stopping."""
+        with patch("server.app.stop_ap"):
+            resp = client.post("/session/stop-ap")
+        assert resp.status_code == 200
+        data = json.loads(resp.data)
+        assert data["status"] == "stopping"
