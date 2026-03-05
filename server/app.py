@@ -9,6 +9,7 @@ import logging
 import os
 import queue
 from typing import Optional
+from threading import Timer
 
 from flask import Flask, Response, jsonify, render_template, send_from_directory
 
@@ -87,6 +88,20 @@ def serve_photo(filename):
 def status():
     """Health-check endpoint."""
     return jsonify({"status": "ok"})
+
+@app.route("/trigger", methods=["POST"])
+def trigger():
+    """Simuliert den physischen Button aus der WebUI heraus."""
+    # Sende das Button-Pressed Event (Startet den Countdown im Browser)
+    event_queue.put({"event": "button_pressed"})
+    
+    # Warte 8 Sekunden (wie der Arduino es tun würde) und feuere dann das Foto
+    def trigger_photo():
+        _on_serial_message("countdown_complete")
+
+    Timer(8.0, trigger_photo).start()
+    
+    return jsonify({"status": "triggered"})
 
 
 # ── Startup ───────────────────────────────────────────────────────────────
