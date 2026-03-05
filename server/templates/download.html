@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deine Fotos - Download</title>
+  <style>
+    body { font-family: sans-serif; background: #111; color: white; text-align: center; padding: 20px; }
+    img { max-width: 100%; height: auto; border-radius: 8px; margin-bottom: 10px; }
+    .photo-card { background: #222; padding: 10px; margin-bottom: 20px; border-radius: 10px; }
+    .btn { display: inline-block; background: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Deine Fotos 📸</h1>
+  <p>Tippe auf "Download" und speichere das Bild auf deinem Gerät.</p>
+  
+  {% if photos %}
+    {% for photo in photos %}
+      <div class="photo-card">
+        <img src="/photos/{{ photo }}" alt="Dein Foto">
+        <br>
+        <a href="/photos/{{ photo }}" class="btn" download>⬇️ Download</a>
+      </div>
+    {% endfor %}
+  {% else %}
+    <p>Keine Fotos gefunden.</p>
+  {% endif %}
+</body>
+</html>
