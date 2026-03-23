@@ -83,6 +83,24 @@ To launch the browser in kiosk mode on the Raspberry Pi:
 chromium --kiosk --noerrdialogs --disable-infobars http://localhost:5000
 ```
 
+### 6. Auto Mode (recommended for Raspberry Pi kiosk)
+
+Install and enable startup automation:
+
+```bash
+cd ~/Fotobox
+chmod +x setup.sh start.sh
+./setup.sh
+sudo systemctl start fotobox
+```
+
+Manual start with browser kiosk (same runtime commands as above, bundled):
+
+```bash
+cd ~/Fotobox
+./start.sh
+```
+
 ## Configuration
 
 Edit `server/config.py` to adjust:

@@ -6,7 +6,7 @@ After=network.target
 Type=simple
 User=pi
 WorkingDirectory=/home/pi/Fotobox
-ExecStart=/home/pi/Fotobox/venv/bin/python server/app.py
+ExecStart=/home/pi/Fotobox/start.sh
 Restart=on-failure
 RestartSec=5
 Environment=FOTOBOX_PHOTO_DIR=/home/pi/photos

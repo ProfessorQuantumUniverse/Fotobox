@@ -36,6 +36,7 @@ event_queue: queue.Queue = queue.Queue()
 
 _session_lock = Lock()
 _session_photos: list[str] = []  # filenames captured in the current session
+_last_finished_session_photos: list[str] = []
 
 # ── Serial event handler ─────────────────────────────────────────────────
 
@@ -111,15 +112,28 @@ def _make_wifi_qr(ssid: str, password: str) -> str:
     return f"data:image/png;base64,{encoded}"
 
 
+def _make_text_qr(text: str) -> str:
+    """Generate a text QR code and return it as a base64 PNG data URI."""
+    img = qrcode.make(text)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    encoded = base64.b64encode(buf.getvalue()).decode("ascii")
+    return f"data:image/png;base64,{encoded}"
+
+
 @app.route("/session/finish", methods=["POST"])
 def session_finish():
     """Finalise the current session, start an AP, and return QR code data."""
     with _session_lock:
         photos = list(_session_photos)
         _session_photos.clear()
+        _last_finished_session_photos.clear()
+        _last_finished_session_photos.extend(photos)
 
     ssid, password = generate_ap_credentials()
-    qr_data_uri = _make_wifi_qr(ssid, password)
+    wifi_qr_data_uri = _make_wifi_qr(ssid, password)
+    download_url = f"http://{AP_IP}:{PORT}/download"
+    download_qr_data_uri = _make_text_qr(download_url)
 
     # Start the AP in a background thread; non-daemon so shutdown waits for it.
     Thread(target=create_ap, args=(ssid, password)).start()
@@ -129,9 +143,13 @@ def session_finish():
         "photos": photos,
         "ssid": ssid,
         "password": password,
-        # Alt: "url": f"http://{AP_IP}:{PORT}/",
-        "url": f"http://{AP_IP}:{PORT}/download",
-        "qr": qr_data_uri,
+        # Backward-compatible aliases:
+        "url": download_url,
+        "qr": wifi_qr_data_uri,
+        # Explicit values for UI:
+        "download_url": download_url,
+        "wifi_qr": wifi_qr_data_uri,
+        "download_qr": download_qr_data_uri,
     })
 
 
@@ -157,18 +175,16 @@ def trigger():
 
 @app.route("/download")
 def download_gallery():
-    """Zeigt eine Galerie der frisch gemachten Fotos zum Download für das Handy an."""
-    # Wir nehmen die Fotos aus der aktuellen Session, die gerade beendet wurde.
-    # Da _session_photos beim Finish geleert wird, müssen wir sie trickreich übergeben,
-    # oder einfach die aktuellsten Dateien aus dem Ordner lesen.
-    # Der einfachste Weg für den Anfang: Zeige alle Fotos (oder sortiert die neuesten).
-    
-    files = []
-    if os.path.exists(PHOTO_DIR):
-        files = sorted(os.listdir(PHOTO_DIR), reverse=True)
-        # Nur JPGs anzeigen und auf die letzten z.B. 10 beschränken
-        files = [f for f in files if f.endswith(".jpg")][:10]
-        
+    """Show a mobile-friendly gallery of the most recent session photos."""
+    files: list[str] = []
+    with _session_lock:
+        if _last_finished_session_photos:
+            files = list(_last_finished_session_photos)
+
+    if not files and os.path.exists(PHOTO_DIR):
+        all_entries = sorted(os.listdir(PHOTO_DIR), reverse=True)
+        files = [f for f in all_entries if f.lower().endswith(".jpg")][:10]
+
     return render_template("download.html", photos=files)
 
 
