@@ -20,6 +20,9 @@ pip install -r requirements.txt
 # Create photo directory
 mkdir -p /home/pi/photos
 
+# Ensure start helper is executable
+chmod +x "$SCRIPT_DIR/start.sh"
+
 # Install systemd service
 sudo cp fotobox.service /etc/systemd/system/
 sudo systemctl daemon-reload

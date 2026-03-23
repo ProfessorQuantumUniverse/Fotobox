@@ -19,6 +19,7 @@
 
   // QR screen elements
   const qrCodeImg       = document.getElementById("qr-code-img");
+  const qrDownloadImg   = document.getElementById("qr-download-img");
   const qrSsid          = document.getElementById("qr-ssid");
   const qrPassword      = document.getElementById("qr-password");
   const qrUrl           = document.getElementById("qr-url");
@@ -102,10 +103,14 @@
       fetch("/session/finish", { method: "POST" })
         .then(function (res) { return res.json(); })
         .then(function (data) {
-          qrCodeImg.src = data.qr;
+          const wifiQr = data.wifi_qr || data.qr;
+          const downloadQr = data.download_qr || data.qr;
+          const downloadUrl = data.download_url || data.url;
+          qrCodeImg.src = wifiQr;
+          qrDownloadImg.src = downloadQr;
           qrSsid.textContent = data.ssid;
           qrPassword.textContent = data.password;
-          qrUrl.textContent = data.url;
+          qrUrl.textContent = downloadUrl;
           showScreen(screenQr);
         })
         .catch(function (err) {
