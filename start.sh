@@ -15,6 +15,7 @@ python -m server.app &
 SERVER_PID=$!
 
 cleanup() {
+  kill "${CHROMIUM_PID:-}" 2>/dev/null || true
   kill "$SERVER_PID" 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
@@ -26,4 +27,7 @@ for _ in $(seq 1 30); do
   sleep 1
 done
 
-chromium --kiosk --noerrdialogs --disable-infobars "http://localhost:${FOTOBOX_PORT}"
+chromium --kiosk --noerrdialogs --disable-infobars "http://localhost:${FOTOBOX_PORT}" &
+CHROMIUM_PID=$!
+
+wait "$CHROMIUM_PID"
