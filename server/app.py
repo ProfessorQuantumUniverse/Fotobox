@@ -206,7 +206,16 @@ def start_serial() -> None:
 
 def create_app():
     """Application factory used by tests and production."""
-    os.makedirs(PHOTO_DIR, exist_ok=True)
+    try:
+        os.makedirs(PHOTO_DIR, exist_ok=True)
+    except PermissionError as exc:
+        logger.error(
+            "Cannot create photo directory '%s': %s. "
+            "Set FOTOBOX_PHOTO_DIR to a writable path.",
+            PHOTO_DIR,
+            exc,
+        )
+        raise
     return app
 
 
