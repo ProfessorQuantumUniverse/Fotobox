@@ -47,6 +47,21 @@
     showScreen(screenIdle);
   }
 
+  let reviewTimeoutId = null;
+
+  function clearReviewTimeout() {
+    if (reviewTimeoutId !== null) {
+      clearTimeout(reviewTimeoutId);
+      reviewTimeoutId = null;
+    }
+  }
+
+  function scheduleReviewReturn() {
+    clearReviewTimeout();
+    const reviewMs = Math.max(0, Number(REVIEW_SECONDS) || 0) * 1000;
+    reviewTimeoutId = setTimeout(returnToIdle, reviewMs);
+  }
+
   // ── SSE Connection ──────────────────────────────────
 
   function connectSSE() {
@@ -73,9 +88,11 @@
         case "photo_taken":
           reviewPhoto.src = "/photos/" + msg.data.filename;
           showScreen(screenReview);
+          scheduleReviewReturn();
           break;
 
         case "error":
+          clearReviewTimeout();
           errorMessage.textContent = msg.data.message || "Unbekannter Fehler";
           showScreen(screenError);
           setTimeout(returnToIdle, 4000);
@@ -93,12 +110,14 @@
 
   if (btnMorePhotos) {
     btnMorePhotos.addEventListener("click", function () {
+      clearReviewTimeout();
       returnToIdle();
     });
   }
 
   if (btnDone) {
     btnDone.addEventListener("click", function () {
+      clearReviewTimeout();
       btnDone.disabled = true;
       fetch("/session/finish", { method: "POST" })
         .then(function (res) { return res.json(); })
