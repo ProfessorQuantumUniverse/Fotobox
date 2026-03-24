@@ -58,7 +58,11 @@
 
   function scheduleReviewReturn() {
     clearReviewTimeout();
-    const reviewMs = Math.max(0, Number(REVIEW_SECONDS) || 0) * 1000;
+    const parsedReviewSeconds = Number(REVIEW_SECONDS);
+    const reviewSeconds = Number.isFinite(parsedReviewSeconds) && parsedReviewSeconds >= 0
+      ? parsedReviewSeconds
+      : 5;
+    const reviewMs = reviewSeconds * 1000;
     reviewTimeoutId = setTimeout(returnToIdle, reviewMs);
   }
 
