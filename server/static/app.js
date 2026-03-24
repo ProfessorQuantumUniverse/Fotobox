@@ -26,6 +26,7 @@
   const btnNewSession   = document.getElementById("btn-new-session");
 
   // ── Helpers ──────────────────────────────────────────
+  const DEFAULT_REVIEW_SECONDS = 5;
 
   function showScreen(screen) {
     [screenIdle, screenCountdown, screenReview, screenQr, screenError].forEach(function (s) {
@@ -58,10 +59,13 @@
 
   function scheduleReviewReturn() {
     clearReviewTimeout();
-    const parsedReviewSeconds = Number(REVIEW_SECONDS);
+    const configuredReviewSeconds = typeof REVIEW_SECONDS !== "undefined"
+      ? REVIEW_SECONDS
+      : DEFAULT_REVIEW_SECONDS;
+    const parsedReviewSeconds = Number(configuredReviewSeconds);
     const reviewSeconds = Number.isFinite(parsedReviewSeconds) && parsedReviewSeconds >= 0
       ? parsedReviewSeconds
-      : 5;
+      : DEFAULT_REVIEW_SECONDS;
     const reviewMs = reviewSeconds * 1000;
     reviewTimeoutId = setTimeout(returnToIdle, reviewMs);
   }
