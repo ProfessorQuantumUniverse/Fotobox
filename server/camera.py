@@ -62,11 +62,11 @@ def capture_image() -> str:
     except subprocess.CalledProcessError as exc:
         logger.error("gphoto2 failed: %s", exc.stderr)
         raise RuntimeError(f"Camera capture failed: {exc.stderr}") from exc
+    except subprocess.TimeoutExpired as exc:
+        logger.error("gphoto2 timed out after 30 seconds")
+        raise RuntimeError("Camera capture timed out. Is the camera mounted by the OS?") from exc
     except FileNotFoundError:
         raise RuntimeError("gphoto2 is not installed or not in PATH")
-
-    if not os.path.isfile(filepath):
-        raise RuntimeError(f"Photo file not found after capture: {filepath}")
 
     # Flush OS write-buffers to disk so the file is fully readable before
     # the photo_taken SSE event is emitted to the browser.
