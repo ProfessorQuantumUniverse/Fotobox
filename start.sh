@@ -7,7 +7,7 @@ cd "$SCRIPT_DIR"
 
 source venv/bin/activate
 
-export FOTOBOX_PHOTO_DIR="${FOTOBOX_PHOTO_DIR:-/home/pi/photos}"
+export FOTOBOX_PHOTO_DIR="${FOTOBOX_PHOTO_DIR:-${HOME}/photos}"
 export FOTOBOX_HOST="${FOTOBOX_HOST:-0.0.0.0}"
 export FOTOBOX_PORT="${FOTOBOX_PORT:-5000}"
 

@@ -5,11 +5,11 @@ After=network.target
 [Service]
 Type=simple
 User=pi
-WorkingDirectory=/home/pi/Fotobox
-ExecStart=/home/pi/Fotobox/start.sh
+WorkingDirectory=%h/Fotobox
+ExecStart=%h/Fotobox/start.sh
 Restart=on-failure
 RestartSec=5
-Environment=FOTOBOX_PHOTO_DIR=/home/pi/photos
+Environment=FOTOBOX_PHOTO_DIR=%h/photos
 
 [Install]
 WantedBy=multi-user.target

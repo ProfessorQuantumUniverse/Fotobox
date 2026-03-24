@@ -18,7 +18,7 @@ pip install --upgrade pip
 pip install -r requirements.txt
 
 # Create photo directory
-mkdir -p /home/pi/photos
+mkdir -p "${HOME}/photos"
 
 # Ensure start helper is executable
 chmod +x "$SCRIPT_DIR/start.sh"
