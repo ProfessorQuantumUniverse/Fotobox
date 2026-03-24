@@ -35,6 +35,7 @@ def capture_image() -> str:
 
     cmd = ["gphoto2"]
 
+    subprocess.run(["pkill", "-f", "gphoto2"], capture_output=True)
 
     # ZUERST die Konfiguration setzen (falls gewünscht)
     if CAPTURE_TARGET == 0:
