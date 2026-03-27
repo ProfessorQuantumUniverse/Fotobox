@@ -2,6 +2,17 @@
 
 import os
 
+# --- Sharing Mode ---
+# "hotspot" (lokales WLAN) oder "nextcloud" (Cloud Upload)
+SHARE_MODE = os.environ.get("FOTOBOX_SHARE_MODE", "nextcloud").lower()
+
+# --- Nextcloud Settings ---
+NEXTCLOUD_URL = os.environ.get("FOTOBOX_NC_URL", "https://technik.waldorfschule-frankfurt.de/cloud")
+# Erstelle dir in Nextcloud am besten ein "App-Passwort" für die Fotobox (Sicherheit > Geräte & Sitzungen)
+NEXTCLOUD_USERNAME = os.environ.get("FOTOBOX_NC_USER", "dein_nextcloud_benutzername")
+NEXTCLOUD_PASSWORD = os.environ.get("FOTOBOX_NC_PASS", "dein_nextcloud_app_passwort")
+NEXTCLOUD_BASE_FOLDER = os.environ.get("FOTOBOX_NC_FOLDER", "Fotobox")
+
 # --- Serial (Arduino) ---
 SERIAL_PORT = os.environ.get("FOTOBOX_SERIAL_PORT", "/dev/ttyUSB0")
 SERIAL_BAUD = int(os.environ.get("FOTOBOX_SERIAL_BAUD", "9600"))
