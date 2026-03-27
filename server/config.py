@@ -1,6 +1,9 @@
 """Fotobox configuration constants."""
 
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # --- Sharing Mode ---
 # "hotspot" (lokales WLAN) oder "nextcloud" (Cloud Upload)
