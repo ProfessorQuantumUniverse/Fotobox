@@ -103,14 +103,29 @@
       fetch("/session/finish", { method: "POST" })
         .then(function (res) { return res.json(); })
         .then(function (data) {
-          const wifiQr = data.wifi_qr || data.qr;
-          const downloadQr = data.download_qr || data.qr;
-          const downloadUrl = data.download_url || data.url;
-          qrCodeImg.src = wifiQr;
-          qrDownloadImg.src = downloadQr;
-          qrSsid.textContent = data.ssid;
-          qrPassword.textContent = data.password;
-          qrUrl.textContent = downloadUrl;
+          const boxWifi = document.getElementById("box-wifi");
+          const instructionDownload = document.getElementById("instruction-download");
+          const qrCredentials = document.getElementById("qr-credentials");
+
+          if (data.share_mode === "nextcloud") {
+            // Nextcloud: Verstecke WLAN-Anweisungen, zeige nur den Nextcloud-Link
+            boxWifi.style.display = "none";
+            qrCredentials.style.display = "none";
+            instructionDownload.textContent = "Scanne den Code mit deiner Kamera-App";
+            qrDownloadImg.src = data.download_qr;
+          } else {
+            // Hotspot: Zeige beide QR Codes (WLAN + Lokal)
+            boxWifi.style.display = "flex";
+            qrCredentials.style.display = "block";
+            instructionDownload.textContent = "2) Download-Webseite per QR öffnen";
+            
+            qrCodeImg.src = data.wifi_qr || data.qr;
+            qrDownloadImg.src = data.download_qr || data.qr;
+            qrSsid.textContent = data.ssid;
+            qrPassword.textContent = data.password;
+            qrUrl.textContent = data.download_url || data.url;
+          }
+
           showScreen(screenQr);
         })
         .catch(function (err) {
