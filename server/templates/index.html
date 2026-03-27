@@ -34,22 +34,23 @@
     </div>
   </div>
   <!-- QR code screen -->
+  <!-- QR code screen -->
   <div id="screen-qr" class="screen">
     <div class="qr-content">
       <h2>📡 Fotos herunterladen</h2>
       
       <div class="qr-wrapper">
-        <div class="qr-box">
+        <div class="qr-box" id="box-wifi">
           <p class="qr-instruction">1) WLAN via QR verbinden</p>
           <img id="qr-code-img" src="" alt="WiFi QR Code" />
         </div>
-        <div class="qr-box">
-          <p class="qr-instruction">2) Download-Webseite per QR öffnen</p>
+        <div class="qr-box" id="box-download">
+          <p class="qr-instruction" id="instruction-download">2) Download-Webseite per QR öffnen</p>
           <img id="qr-download-img" src="" alt="Download URL QR Code" />
         </div>
       </div>
 
-      <div class="qr-credentials">
+      <div class="qr-credentials" id="qr-credentials">
         <p><span class="qr-label">WLAN:</span> <span id="qr-ssid"></span></p>
         <p><span class="qr-label">Passwort:</span> <span id="qr-password"></span></p>
         <p><span class="qr-label">URL:</span> <span id="qr-url"></span></p>
