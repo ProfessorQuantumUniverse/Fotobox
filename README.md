@@ -70,7 +70,7 @@ Open `arduino/fotobox_trigger/fotobox_trigger.ino` in the Arduino IDE and upload
 
 ```bash
 source venv/bin/activate
-FOTOBOX_PHOTO_DIR=./photos python -m server.app
+python -m server.app
 ```
 
 The web UI will be available at `http://localhost:5000`.
@@ -81,24 +81,6 @@ To launch the browser in kiosk mode on the Raspberry Pi:
 
 ```bash
 chromium --kiosk --noerrdialogs --disable-infobars http://localhost:5000
-```
-
-### 6. Auto Mode (recommended for Raspberry Pi kiosk)
-
-Install and enable startup automation:
-
-```bash
-cd ~/Fotobox
-chmod +x setup.sh start.sh
-./setup.sh
-sudo systemctl start fotobox
-```
-
-Manual start with browser kiosk (same runtime commands as above, bundled):
-
-```bash
-cd ~/Fotobox
-./start.sh
 ```
 
 ## Configuration
