@@ -4,12 +4,12 @@ After=network.target
 
 [Service]
 Type=simple
-User=pi
-WorkingDirectory=%h/Fotobox
-ExecStart=%h/Fotobox/start.sh
-Restart=on-failure
+User=fotobox
+WorkingDirectory=/home/fotobox/Fotobox
+ExecStart=/home/fotobox/Fotobox/venv/bin/python -m server.app
+Restart=always
 RestartSec=5
-Environment=FOTOBOX_PHOTO_DIR=%h/photos
+Environment=FOTOBOX_PHOTO_DIR=/home/fotobox/photos
 
 [Install]
 WantedBy=multi-user.target
