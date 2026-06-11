@@ -256,10 +256,9 @@ html, body {
 }
 
 .photo-frame img {
-  width: 100%;
-  height: 100%;
+  max-width: calc(100vw - 6rem);
+  max-height: 55vh; /* Verkleinert von 68vh, damit Buttons Platz haben */
   object-fit: contain;
-  display: block;
 }
 
 .review-buttons {
@@ -336,7 +335,7 @@ html, body {
   text-align: center;
   padding: 2rem;
   max-height: 100vh;
-  overflow-y: auto;
+  overflow: hidden; /* Scrollen komplett deaktivieren */
 }
 
 .qr-content h2 {
