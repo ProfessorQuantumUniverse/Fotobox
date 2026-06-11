@@ -1,7 +1,16 @@
 /* === Fotobox – Kiosk UI ===
-   Monochromes Schwarz-Weiß-Design.
+   Monochromes Schwarz-Weiß-Design, Typografie: Exo 2 (lokal gebündelt).
    Performance (Pi 3): Animationen ausschließlich über transform/opacity
    (GPU-Compositing), keine Filter/Blur/Box-Shadow-Animationen. */
+
+/* Exo 2 als Variable Font – ein File deckt 300..800 ab (offline-tauglich) */
+@font-face {
+  font-family: "Exo 2";
+  font-style: normal;
+  font-weight: 300 800;
+  font-display: swap;
+  src: url("/static/fonts/exo2-latin-variable.woff2") format("woff2-variations");
+}
 
 :root {
   --bg: #000000;
@@ -9,7 +18,9 @@
   --fg-dim: #9a9a9a;
   --fg-faint: #4a4a4a;
   --line: #2e2e2e;
-  --font: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --ok: #ffffff;
+  --bad: #ff5252;
+  --font: "Exo 2", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
 * {
@@ -76,19 +87,19 @@ html, body {
 }
 
 .wordmark {
-  font-size: 4.5rem;
-  font-weight: 200;
-  letter-spacing: 1.2rem;
-  margin-right: -1.2rem; /* optisch zentrieren (letzter letter-spacing) */
+  font-size: 5.2rem;
+  font-weight: 800;
+  letter-spacing: 1rem;
+  margin-right: -1rem; /* optisch zentrieren (letzter letter-spacing) */
   margin-top: 2.5rem;
 }
 
 .hint {
   margin-top: 1.25rem;
   font-size: 1.5rem;
-  font-weight: 300;
+  font-weight: 400;
   color: var(--fg-dim);
-  letter-spacing: 0.15rem;
+  letter-spacing: 0.12rem;
 }
 
 .hint-sep {
@@ -141,17 +152,17 @@ html, body {
 }
 
 .countdown-label {
-  font-size: 1.6rem;
-  font-weight: 300;
-  letter-spacing: 0.4rem;
+  font-size: 1.7rem;
+  font-weight: 700;
+  letter-spacing: 0.45rem;
   text-transform: uppercase;
   color: var(--fg-dim);
   margin-bottom: 1.5rem;
 }
 
 .countdown-number {
-  font-size: 13rem;
-  font-weight: 100;
+  font-size: 14rem;
+  font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
@@ -290,8 +301,8 @@ html, body {
 }
 
 .qr-content h2 {
-  font-size: 2.4rem;
-  font-weight: 200;
+  font-size: 2.6rem;
+  font-weight: 800;
   letter-spacing: 0.5rem;
   text-transform: uppercase;
 }
@@ -408,9 +419,9 @@ html, body {
 }
 
 .error-title {
-  font-size: 2rem;
-  font-weight: 300;
-  letter-spacing: 0.1rem;
+  font-size: 2.1rem;
+  font-weight: 700;
+  letter-spacing: 0.08rem;
 }
 
 #error-message {
@@ -423,4 +434,125 @@ html, body {
   margin-top: 1.6rem;
   font-size: 1rem;
   color: var(--fg-faint);
+}
+
+/* ── Toast (Ethernet / Update-Benachrichtigung) ─────────────── */
+
+.toast {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  z-index: 100;
+  min-width: 340px;
+  max-width: 520px;
+  padding: 1rem 1.25rem;
+  background: #0c0c0c;
+  border: 1px solid var(--line);
+  /* Slide-in von oben (nur transform/opacity → GPU) */
+  transform: translate(-50%, -160%);
+  opacity: 0;
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.45s ease;
+}
+
+.toast.show {
+  transform: translate(-50%, 0);
+  opacity: 1;
+}
+
+.toast-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.toast-icon {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--fg);
+  border-radius: 50%;
+}
+
+.toast-icon svg {
+  width: 18px;
+  height: 18px;
+  stroke: var(--fg);
+}
+
+.toast.toast-error .toast-icon {
+  border-color: var(--bad);
+}
+.toast.toast-error .toast-icon svg {
+  stroke: var(--bad);
+}
+
+.toast-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.toast-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.04rem;
+}
+
+.toast-message {
+  margin-top: 0.15rem;
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: var(--fg-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.toast-percent {
+  flex: 0 0 auto;
+  font-size: 1.15rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-width: 3.4rem;
+  text-align: right;
+}
+
+/* Spinner für unbestimmte Phasen */
+.toast-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--fg-faint);
+  border-top-color: var(--fg);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Echter Fortschrittsbalken */
+.toast-progress {
+  margin-top: 0.85rem;
+  height: 4px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.toast-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: var(--fg);
+  transition: width 0.35s ease;
+}
+
+.toast.toast-error .toast-progress-bar {
+  background: var(--bad);
+}
+
+.toast.hide-progress .toast-progress,
+.toast.hide-progress .toast-percent {
+  display: none;
 }
