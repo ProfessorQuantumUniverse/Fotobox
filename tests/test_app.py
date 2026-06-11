@@ -157,34 +157,6 @@ class TestSessionFinishHotspot:
         assert json.loads(resp.data)["status"] == "stopping"
 
 
-class TestSystemShutdown:
-    """The kiosk shutdown menu powers the Pi off cleanly."""
-
-    def test_shutdown_triggers_command(self, client):
-        # Den eigentlichen Shutdown-Thread synchron ausführen und stop_ap +
-        # shutdown-Aufruf prüfen – ohne den Rechner wirklich auszuschalten.
-        def run_inline(target, daemon=False):
-            class _T:
-                def start(self_inner):
-                    target()
-            return _T()
-
-        with patch("server.app.Thread", side_effect=run_inline), \
-             patch("server.app.stop_ap") as mock_stop, \
-             patch("server.app.subprocess.run") as mock_run:
-            resp = client.post("/system/shutdown")
-
-        assert resp.status_code == 200
-        assert json.loads(resp.data)["status"] == "shutting_down"
-        mock_stop.assert_called_once()
-        # Letzter Aufruf muss der shutdown-Befehl sein.
-        assert mock_run.call_args_list[-1].args[0][:2] == ["sudo", "shutdown"]
-
-    def test_shutdown_is_localhost_only(self, client):
-        resp = client.post("/system/shutdown", environ_base={"REMOTE_ADDR": "10.42.0.55"})
-        assert resp.status_code == 403
-
-
 
 class TestTrigger:
     """Tests for the WebUI trigger endpoint."""
@@ -213,6 +185,71 @@ class TestTrigger:
 
         with app_module._trigger_lock:
             app_module._trigger_pending = False
+
+
+class TestEthernetHandlers:
+    """The Ethernet monitor callbacks must push the right SSE events."""
+
+    def _drain(self):
+        while not app_module.event_queue.empty():
+            app_module.event_queue.get_nowait()
+
+    def test_check_triggers_update_silently(self):
+        # Der 10s-Tick prüft still im Hintergrund: kein Event, nur der
+        # Update-Thread wird gestartet.
+        self._drain()
+        with patch("server.app.AUTO_UPDATE", True), \
+             patch("server.app.start_update_async") as mock_update:
+            app_module._check_for_update()
+
+        assert app_module.event_queue.empty()  # keine sichtbaren Events
+        mock_update.assert_called_once()
+
+    def test_check_without_auto_update(self):
+        self._drain()
+        with patch("server.app.AUTO_UPDATE", False), \
+             patch("server.app.start_update_async") as mock_update:
+            app_module._check_for_update()
+
+        assert app_module.event_queue.empty()
+        mock_update.assert_not_called()
+
+    def test_disconnect_cancels_silently(self):
+        # Ausstecken ist gewollt: Update wird still zurückgerollt, KEIN Toast.
+        self._drain()
+        with patch("server.app.cancel_update") as mock_cancel:
+            app_module._on_ethernet_disconnect()
+
+        mock_cancel.assert_called_once()
+        assert app_module.event_queue.empty()
+
+    def test_update_progress_is_silent(self):
+        # Fortschritt geht nur ins Log, nicht als Toast an die UI.
+        self._drain()
+        app_module._emit_update_progress(42, "Lade …")
+        assert app_module.event_queue.empty()
+
+    def test_update_done_emits_toast_when_changed(self):
+        self._drain()
+        with patch("server.app.current_revision", return_value="abc1234"):
+            app_module._on_update_done(True, "Aktualisiert auf abc1234", True)
+        event = app_module.event_queue.get_nowait()
+        assert event["event"] == "update_done"
+        assert event["data"]["revision"] == "abc1234"
+
+    def test_update_done_silent_when_unchanged(self):
+        # Bereits aktuell → kein Toast.
+        self._drain()
+        with patch("server.app.current_revision", return_value="abc1234"):
+            app_module._on_update_done(True, "Bereits aktuell", False)
+        assert app_module.event_queue.empty()
+
+    def test_update_done_silent_on_failure(self):
+        # Offline/Fehler ist kein Fehlerfall für den Nutzer → kein Toast.
+        self._drain()
+        with patch("server.app.current_revision", return_value="abc1234"):
+            app_module._on_update_done(False, "git fetch fehlgeschlagen", False)
+        assert app_module.event_queue.empty()
 
 
 class TestDownloadGallery:

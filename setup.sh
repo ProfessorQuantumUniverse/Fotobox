@@ -35,13 +35,6 @@ sudo cp fotobox-kiosk.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable fotobox.service
 
-# Passwortloses Herunterfahren für das Shutdown-Menü (5× Knopf drücken).
-# Erlaubt der Fotobox NUR den Shutdown-Befehl – sonst nichts.
-SUDO_USER_NAME="$(id -un)"
-echo "${SUDO_USER_NAME} ALL=(root) NOPASSWD: /sbin/shutdown, /usr/sbin/shutdown" | \
-  sudo tee /etc/sudoers.d/fotobox-shutdown >/dev/null
-sudo chmod 0440 /etc/sudoers.d/fotobox-shutdown
-
 echo ""
 echo "Setup complete.  Start with:  sudo systemctl start fotobox"
 echo ""
@@ -49,11 +42,3 @@ echo "Kiosk ohne Desktop (empfohlen auf dem Pi 3):"
 echo "  1. raspi-config → System Options → Boot / Auto Login → Console Autologin"
 echo "  2. sudo apt-get install -y xserver-xorg xinit chromium-browser"
 echo "  3. sudo systemctl enable --now fotobox-kiosk.service"
-echo ""
-echo "WICHTIG – stromausfallfestes Booten (Stecker ziehen ohne Schaden):"
-echo "  Root read-only machen, damit hartes Ausschalten die SD-Karte/Services"
-echo "  nicht beschädigt:   sudo ./enable-readonly-fs.sh"
-echo "  Danach IMMER einen USB-Stick stecken lassen – Fotos werden dorthin"
-echo "  gesichert (lokale ~/photos überleben dann keinen Neustart)."
-echo "  Sauberes Ausschalten geht jederzeit über das Shutdown-Menü"
-echo "  (5× schnell den Knopf drücken)."

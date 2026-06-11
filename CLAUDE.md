@@ -63,7 +63,6 @@ The system is a Flask web app that runs on a Raspberry Pi 3 and drives a kiosk d
 - `server/access_point.py` — wraps `nmcli` with profile reuse; requires `sudo` on the Pi
 - `server/nextcloud_client.py` — WebDAV + OCS API; every request has a timeout; uploads happen in a daemon thread after the share link is already returned
 - `server/previews.py` — cached downscaled previews via Pillow `draft()` decoding
-- `server/usb_backup.py` — copies photos to a mounted USB stick; a poll loop in `app.py` toasts on insert/removal and bulk-backs-up on insert
 
 ## Configuration (via env vars or `.env` — see `.env.example` for the full list)
 
@@ -79,13 +78,6 @@ The system is a Flask web app that runs on a Raspberry Pi 3 and drives a kiosk d
 | `FOTOBOX_REVIEW_SECONDS` | `30` | Auto-reset of the review screen (0 = off) |
 | `FOTOBOX_QR_TIMEOUT_SECONDS` | `120` | Auto-reset of the QR screen (0 = off) |
 | `FOTOBOX_PREVIEW_MAX_SIZE` | `1280` | Max edge length of preview images |
-| `FOTOBOX_USB_BACKUP` | `1` | Copy every captured photo to a mounted USB stick (0 = off) |
-| `FOTOBOX_USB_MOUNT_ROOTS` | `/media:/mnt` | Colon-separated roots scanned for a mounted stick |
-| `FOTOBOX_USB_BACKUP_SUBDIR` | `Fotobox` | Target folder on the stick |
-
-**Shutdown & power resilience:** Pressing the physical button **5× quickly** (within 4 s) during the countdown opens a shutdown menu (`screen-shutdown`); confirming hits `POST /system/shutdown` (localhost-only) which tears down the AP, `sync`s, and runs `sudo shutdown` (passwordless sudoers rule installed by `setup.sh`). The Arduino firmware (`arduino/fotobox_trigger`) detects the 5-tap burst itself: `runCountdown()` polls the button via `interruptibleDelay()` and **aborts the capture** (no `countdown_complete`, no flash, no photo) once the threshold is hit. For unclean power-offs (yanking the plug), run `sudo ./enable-readonly-fs.sh` to put the root filesystem on a read-only overlay so the SD card/services survive — photos then live only on the USB stick. A frontend capture watchdog returns the UI to idle if a capture hangs without producing a photo or error.
-
-**No auto-update:** The Ethernet/git self-updater was removed (it conflicted with the read-only root filesystem). Update by deploying manually (disable the overlay first if enabled).
 
 ## Dev without hardware
 
