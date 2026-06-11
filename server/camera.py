@@ -35,7 +35,12 @@ def capture_image() -> str:
 
     cmd = ["gphoto2"]
 
-    subprocess.run(["pkill", "-f", "gphoto2"], capture_output=True)
+    # Kill any lingering gphoto2 helper that would hold the USB lock.
+    # Non-fatal: pkill may not exist (dev machines) or find no process.
+    try:
+        subprocess.run(["pkill", "-f", "gphoto2"], capture_output=True, timeout=5)
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
 
     # ZUERST die Konfiguration setzen (falls gewünscht)
     if CAPTURE_TARGET == 0:
