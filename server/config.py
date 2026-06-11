@@ -50,6 +50,11 @@ AUTO_UPDATE = os.environ.get("FOTOBOX_AUTO_UPDATE", "1") == "1"
 # Takt der Update-Prüfung in Sekunden (Default 10).
 ETH_POLL_INTERVAL = float(os.environ.get("FOTOBOX_ETH_POLL_INTERVAL", "10"))
 
+# --- Kamera-Stromüberwachung ---
+# Takt (Sekunden), in dem der Lade-/Akkustatus der Kamera abgefragt wird.
+# Toast erscheint nur bei einem Wechsel (Laden beginnt/endet). 0 = aus.
+CAMERA_POWER_POLL = float(os.environ.get("FOTOBOX_CAMERA_POWER_POLL", "30"))
+
 # --- Access Point ---
 AP_IFACE = os.environ.get("FOTOBOX_AP_IFACE", "wlan0")
 AP_CONNECTION_NAME = os.environ.get("FOTOBOX_AP_CONNECTION_NAME", "fotobox-ap")

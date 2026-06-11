@@ -28,7 +28,6 @@
   var qrSsid        = document.getElementById("qr-ssid");
   var qrPassword    = document.getElementById("qr-password");
   var qrUrl         = document.getElementById("qr-url");
-  var btnNewSession = document.getElementById("btn-new-session");
   var btnQrNext     = document.getElementById("btn-qr-next");
   var btnQrBack     = document.getElementById("btn-qr-back");
 
@@ -206,6 +205,13 @@
 
       switch (msg.event) {
         case "button_pressed":
+          // Der physische Knopf startet IMMER eine neue Session sofort.
+          // Auf dem QR-Screen heißt das: alten Hotspot abbauen, dann direkt
+          // in den Countdown (die Server-Session wurde bei "Fertig" geleert).
+          if (screenQr.classList.contains("active")) {
+            fetch("/session/stop-ap", { method: "POST" })
+              .catch(function (err) { console.error("stop-ap error:", err); });
+          }
           startCountdownScreen();
           break;
 
@@ -253,6 +259,28 @@
             progress: false,
             autohide: 5000
           });
+          break;
+
+        case "camera_power":
+          // Wechsel des Lade-/Akkustatus der Kamera (USB-Strom).
+          if (msg.data.charging) {
+            showToast({
+              icon: "link",
+              title: "Kamera lädt",
+              message: "Stromversorgung über USB erkannt",
+              progress: false,
+              autohide: 4000
+            });
+          } else {
+            showToast({
+              icon: "unlink",
+              title: "Kamera am Akku",
+              message: "Keine USB-Stromversorgung mehr",
+              variant: "error",
+              progress: false,
+              autohide: 4000
+            });
+          }
           break;
       }
     };
@@ -309,16 +337,6 @@
         .finally(function () {
           btnDone.disabled = false;
         });
-    });
-  }
-
-  // ── QR screen: start new session ────────────────────
-
-  if (btnNewSession) {
-    btnNewSession.addEventListener("click", function () {
-      fetch("/session/stop-ap", { method: "POST" })
-        .catch(function (err) { console.error("stop-ap error:", err); });
-      returnToIdle();
     });
   }
 
