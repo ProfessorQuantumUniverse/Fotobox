@@ -41,11 +41,14 @@ QR_TIMEOUT_SECONDS = int(os.environ.get("FOTOBOX_QR_TIMEOUT_SECONDS", "120"))
 PREVIEW_MAX_SIZE = int(os.environ.get("FOTOBOX_PREVIEW_MAX_SIZE", "1280"))
 
 # --- Auto-Update über Ethernet ---
-# Beim Einstecken eines LAN-Kabels zieht die Box automatisch die neueste
-# Version per git. Auf 0 setzen, um das Verhalten abzuschalten.
+# Solange ein LAN-Kabel steckt, prüft die Box im festen Takt still im
+# Hintergrund auf eine neuere Version (git) und zieht sie automatisch.
+# Ein Toast erscheint NUR, wenn tatsächlich eine neue Version geladen wurde.
+# Offline/ausgesteckt passiert nichts – keine Fehlermeldungen.
 ETH_IFACE = os.environ.get("FOTOBOX_ETH_IFACE", "eth0")
 AUTO_UPDATE = os.environ.get("FOTOBOX_AUTO_UPDATE", "1") == "1"
-ETH_POLL_INTERVAL = float(os.environ.get("FOTOBOX_ETH_POLL_INTERVAL", "2"))
+# Takt der Update-Prüfung in Sekunden (Default 10).
+ETH_POLL_INTERVAL = float(os.environ.get("FOTOBOX_ETH_POLL_INTERVAL", "10"))
 
 # --- Access Point ---
 AP_IFACE = os.environ.get("FOTOBOX_AP_IFACE", "wlan0")

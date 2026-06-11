@@ -5,8 +5,12 @@ On Linux the carrier state of an interface is exposed at
 it from a daemon thread – no extra dependencies, negligible CPU on a Pi 3.
 
 Transitions drive two callbacks:
-  * cable plugged in  → ``on_connect``  (the app starts a git self-update)
-  * cable pulled out  → ``on_disconnect`` (the app cancels any running update)
+  * cable plugged in  → ``on_connect``  (state changed down→up)
+  * cable pulled out  → ``on_disconnect`` (state changed up→down)
+
+In addition, ``on_connected_tick`` fires on *every* poll while the link is up
+(not only on the transition). The app uses it to re-check for updates in a
+fixed interval as long as the cable stays plugged in.
 """
 
 import logging
@@ -37,12 +41,14 @@ class EthernetMonitor:
         iface: str = "eth0",
         on_connect: Optional[Callable[[], None]] = None,
         on_disconnect: Optional[Callable[[], None]] = None,
+        on_connected_tick: Optional[Callable[[], None]] = None,
         poll_interval: float = 2.0,
         carrier_reader: Callable[[str], Optional[bool]] = _read_carrier,
     ):
         self.iface = iface
         self.on_connect = on_connect
         self.on_disconnect = on_disconnect
+        self.on_connected_tick = on_connected_tick
         self.poll_interval = poll_interval
         self._read = carrier_reader
         self._thread: Optional[threading.Thread] = None
@@ -83,6 +89,12 @@ class EthernetMonitor:
             return
         previous = self._last_state
         self._last_state = current
+
+        # Solange das Kabel steckt, bei jedem Poll den Tick feuern (für die
+        # wiederkehrende Update-Prüfung im festen Takt).
+        if current and self.on_connected_tick:
+            self.on_connected_tick()
+
         if previous is None or previous == current:
             return
         if current:

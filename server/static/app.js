@@ -29,6 +29,22 @@
   var qrPassword    = document.getElementById("qr-password");
   var qrUrl         = document.getElementById("qr-url");
   var btnNewSession = document.getElementById("btn-new-session");
+  var btnQrNext     = document.getElementById("btn-qr-next");
+  var btnQrBack     = document.getElementById("btn-qr-back");
+
+  function showQrPage(id) {
+    var pages = document.querySelectorAll(".qr-page");
+    for (var i = 0; i < pages.length; i++) {
+      pages[i].classList.toggle("active", pages[i].id === id);
+    }
+  }
+
+  if (btnQrNext) {
+    btnQrNext.addEventListener("click", function () { showQrPage("box-download"); });
+  }
+  if (btnQrBack) {
+    btnQrBack.addEventListener("click", function () { showQrPage("box-wifi"); });
+  }
 
   var countdownInterval = null;
   var reviewTimeout = null;
@@ -159,91 +175,6 @@
     }, 1000);
   }
 
-  // ── Ball-Physics-Ladeanimation ────────────────────────
-
-  function startBallAnimation(canvas) {
-    var W = canvas.width, H = canvas.height;
-    var ctx = canvas.getContext("2d");
-    var raf = null;
-    var running = true;
-
-    var N = 11;
-    var balls = [];
-    for (var i = 0; i < N; i++) {
-      var r = 8 + Math.random() * 22;
-      balls.push({
-        x: r + Math.random() * (W - 2 * r),
-        y: -r * 3 - Math.random() * H * 0.9,
-        vx: (Math.random() - 0.5) * 3.5,
-        vy: Math.random() * 2,
-        r: r,
-        m: r * r,
-      });
-    }
-
-    var G = 0.38, REST = 0.52, AIR = 0.985, GFRIC = 0.84;
-
-    function step() {
-      if (!running) return;
-      ctx.fillStyle = "#000";
-      ctx.fillRect(0, 0, W, H);
-
-      for (var i = 0; i < balls.length; i++) {
-        var b = balls[i];
-        b.vy += G;
-        b.vx *= AIR;
-        b.x += b.vx;
-        b.y += b.vy;
-        if (b.x - b.r < 0)  { b.x = b.r;     b.vx =  Math.abs(b.vx) * REST; }
-        if (b.x + b.r > W)  { b.x = W - b.r; b.vx = -Math.abs(b.vx) * REST; }
-        if (b.y + b.r > H)  { b.y = H - b.r; b.vy = -Math.abs(b.vy) * REST; b.vx *= GFRIC; }
-      }
-
-      for (var i = 0; i < balls.length; i++) {
-        for (var j = i + 1; j < balls.length; j++) {
-          var a = balls[i], b2 = balls[j];
-          var dx = b2.x - a.x, dy = b2.y - a.y;
-          var d2 = dx * dx + dy * dy;
-          var md = a.r + b2.r;
-          if (d2 < md * md && d2 > 0.001) {
-            var d = Math.sqrt(d2);
-            var nx = dx / d, ny = dy / d;
-            var sep = (md - d) * 0.5;
-            var mt = a.m + b2.m;
-            a.x  -= nx * sep * (b2.m / mt);
-            a.y  -= ny * sep * (b2.m / mt);
-            b2.x += nx * sep * (a.m  / mt);
-            b2.y += ny * sep * (a.m  / mt);
-            var dvx = a.vx - b2.vx, dvy = a.vy - b2.vy;
-            var dot = dvx * nx + dvy * ny;
-            if (dot > 0) {
-              var imp = 2 * dot / mt * REST;
-              a.vx  -= imp * b2.m * nx;  a.vy  -= imp * b2.m * ny;
-              b2.vx += imp * a.m  * nx;  b2.vy += imp * a.m  * ny;
-            }
-          }
-        }
-      }
-
-      for (var i = 0; i < balls.length; i++) {
-        var b = balls[i];
-        if (b.y + b.r <= 0) continue;
-        ctx.beginPath();
-        ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-        ctx.fillStyle = "#fff";
-        ctx.fill();
-      }
-
-      raf = requestAnimationFrame(step);
-    }
-    raf = requestAnimationFrame(step);
-
-    return function () {
-      running = false;
-      if (raf) { cancelAnimationFrame(raf); raf = null; }
-    };
-  }
-
   // ── Review-Auto-Reset ─────────────────────────────────
 
   function startReviewTimer() {
@@ -284,9 +215,9 @@
 
         case "photo_taken":
           (function (filename) {
-            var loader    = document.getElementById("review-loader");
+            var loader     = document.getElementById("review-loader");
             var photoFrame = document.getElementById("photo-frame");
-            // Zustände zurücksetzen
+            // Zustände zurücksetzen: Loader-Loop sichtbar, Frame versteckt.
             loader.classList.remove("done");
             photoFrame.classList.remove("loaded");
             reviewPhoto.onload = null;
@@ -294,31 +225,14 @@
 
             showScreen(screenReview);
 
-            var cancelled = false;
-            var stopAnim  = null;
-
-            // Canvas nach dem ersten Layout-Pass befüllen
-            requestAnimationFrame(function () {
-              if (cancelled) return;
-              loader.width  = loader.clientWidth  || 600;
-              loader.height = loader.clientHeight || 400;
-              stopAnim = startBallAnimation(loader);
-            });
-
-            reviewPhoto.onload = function () {
-              cancelled = true;
-              if (stopAnim) { stopAnim(); }
+            function reveal() {
+              // Foto + Rahmen erscheinen gemeinsam, Loader blendet aus.
               loader.classList.add("done");
               photoFrame.classList.add("loaded");
               startReviewTimer();
-            };
-            reviewPhoto.onerror = function () {
-              cancelled = true;
-              if (stopAnim) { stopAnim(); }
-              loader.classList.add("done");
-              photoFrame.classList.add("loaded");
-              startReviewTimer();
-            };
+            }
+            reviewPhoto.onload = reveal;
+            reviewPhoto.onerror = reveal;
             reviewPhoto.src = "/photos/preview/" + encodeURIComponent(filename);
           }(msg.data.filename));
           break;
@@ -329,61 +243,16 @@
           setTimeout(returnToIdle, 5000);
           break;
 
-        case "ethernet_connected":
-          showToast({
-            icon: "link",
-            title: "LAN verbunden",
-            message: "Suche nach Updates …",
-            progress: false,
-            autohide: 0
-          });
-          break;
-
-        case "ethernet_disconnected":
-          // Cable raus → laufendes Update wird serverseitig zurückgerollt.
-          showToast({
-            icon: "unlink",
-            title: "LAN getrennt",
-            message: "Vorherige Version bleibt aktiv",
-            variant: "error",
-            progress: false,
-            autohide: 4000
-          });
-          break;
-
-        case "update_progress":
-          showToast({
-            icon: "spinner",
-            title: "Update läuft",
-            message: msg.data.message || "Lade herunter …",
-            percent: msg.data.percent,
-            progress: true,
-            autohide: 0
-          });
-          updateToastProgress(msg.data.percent, msg.data.message);
-          break;
-
         case "update_done":
-          if (msg.data.success) {
-            updateToastProgress(100, msg.data.message);
-            showToast({
-              icon: "check",
-              title: "Update fertig",
-              message: msg.data.message || "Aktuell",
-              percent: 100,
-              progress: true,
-              autohide: 4500
-            });
-          } else {
-            showToast({
-              icon: "cross",
-              title: "Update fehlgeschlagen",
-              message: msg.data.message || "Bitte später erneut versuchen",
-              variant: "error",
-              progress: false,
-              autohide: 6000
-            });
-          }
+          // Server schickt dieses Event NUR, wenn wirklich eine neue Version
+          // geladen wurde. Alles andere läuft still im Hintergrund.
+          showToast({
+            icon: "check",
+            title: "Update installiert",
+            message: msg.data.message || "Neue Version aktiv",
+            progress: false,
+            autohide: 5000
+          });
           break;
       }
     };
@@ -418,20 +287,14 @@
           });
         })
         .then(function (data) {
-          var boxWifi = document.getElementById("box-wifi");
-          var instructionDownload = document.getElementById("instruction-download");
-          var stepNumberDownload = document.getElementById("step-number-download");
-
-          // Hotspot: zwei Schritte untereinander (WLAN, dann Download)
-          boxWifi.style.display = "flex";
-          stepNumberDownload.textContent = "2";
-          instructionDownload.textContent = "Code scannen und Fotos herunterladen";
+          // Hotspot: zwei Seiten (Schritt 1 WLAN → Weiter → Schritt 2 Download)
           qrCodeImg.src = data.wifi_qr;
           qrDownloadImg.src = data.download_qr;
           qrSsid.textContent = data.ssid;
           qrPassword.textContent = data.password;
           qrUrl.textContent = data.download_url;
 
+          showQrPage("box-wifi");  // immer mit Schritt 1 starten
           showScreen(screenQr);
           if (window.QR_TIMEOUT_SECONDS && QR_TIMEOUT_SECONDS > 0) {
             qrTimeout = setTimeout(returnToIdle, QR_TIMEOUT_SECONDS * 1000);

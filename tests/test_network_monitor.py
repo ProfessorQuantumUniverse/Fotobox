@@ -69,3 +69,18 @@ class TestEthernetMonitor:
         assert mon.is_running
         mon.stop()
         assert not mon.is_running
+
+    def test_connected_tick_fires_every_poll_while_up(self):
+        """The 10s update check fires on EVERY poll while the cable is in,
+        not only on the connect transition – but never while it's down."""
+        ticks = {"n": 0}
+        mon = EthernetMonitor(
+            iface="eth0",
+            on_connected_tick=lambda: ticks.__setitem__("n", ticks["n"] + 1),
+            carrier_reader=_Carrier(True, True, False, True),
+        )
+        mon.poll_once()  # up   → tick
+        mon.poll_once()  # up   → tick
+        mon.poll_once()  # down → no tick
+        mon.poll_once()  # up   → tick
+        assert ticks["n"] == 3

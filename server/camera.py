@@ -3,6 +3,7 @@
 import logging
 import os
 import subprocess
+import threading
 from datetime import datetime
 
 from server.config import CAPTURE_TARGET, PHOTO_DIR
@@ -17,18 +18,30 @@ def ensure_photo_dir() -> str:
 
 
 def disable_display() -> None:
-    """Turn off the camera's LCD while tethered over USB.
+    """Turn off the camera's rear LCD while tethered over USB.
 
-    Tries the two most common gphoto2 config keys for Canon DSLRs.
-    Completely non-fatal: if the camera isn't connected or doesn't
-    support the config, the app continues normally.
+    Mirrors the approach used by self-o-mat (xtech/self-o-mat,
+    ``GphotoCamera.cpp``): it sets the camera's ``viewfinder`` action to 1.
+    On Canon EOS this engages the "Canon EOS Viewfinder" (live view is routed
+    over USB), which switches the camera's own rear display OFF. ``eosviewfinder``
+    and ``output`` are tried as fallbacks for bodies that name the key
+    differently.
+
+    Completely non-fatal: if the camera isn't connected or doesn't support the
+    config, the app just continues – no error is raised or logged loudly.
     """
-    for cfg in ("output=Off", "viewfinder=1"):
+    # The lingering gphoto2 helper holds the USB lock; clear it first.
+    try:
+        subprocess.run(["pkill", "-f", "gphoto2"], capture_output=True, timeout=5)
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+
+    for cfg in ("viewfinder=1", "eosviewfinder=1", "output=Off"):
         try:
             r = subprocess.run(
                 ["gphoto2", "--set-config", cfg],
                 capture_output=True,
-                timeout=5,
+                timeout=8,
             )
             if r.returncode == 0:
                 logger.info("Camera display disabled via --set-config %s", cfg)
@@ -37,7 +50,7 @@ def disable_display() -> None:
             return  # gphoto2 not installed (dev machine)
         except subprocess.TimeoutExpired:
             logger.debug("gphoto2 --set-config %s timed out", cfg)
-    logger.debug("Camera display could not be disabled (may not be connected yet)")
+    logger.debug("Camera display could not be disabled (camera not connected yet?)")
 
 
 def capture_image() -> str:
@@ -103,4 +116,9 @@ def capture_image() -> str:
         os.fsync(fh.fileno())
 
     logger.info("Photo saved: %s", filepath)
+
+    # Die Aufnahme kann das Kamera-Display wieder eingeschaltet haben –
+    # im Hintergrund erneut ausschalten, ohne die UI zu verzögern.
+    threading.Thread(target=disable_display, daemon=True).start()
+
     return filepath

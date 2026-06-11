@@ -53,7 +53,9 @@
   <div id="screen-review" class="screen">
     <div class="review-content">
       <div class="review-photo-slot">
-        <canvas id="review-loader"></canvas>
+        <!-- Vorgerenderte Loop-Animation (docs/make_loading_animation.py) –
+             spart CPU auf dem Pi 3 gegenüber einer Live-Canvas-Physik. -->
+        <img id="review-loader" src="/static/loading.webp" alt="" />
         <div class="photo-frame" id="photo-frame">
           <img id="review-photo" src="" alt="Dein Foto" />
         </div>
@@ -72,7 +74,7 @@
       <h2>Deine Fotos</h2>
 
       <div class="qr-steps">
-        <div class="qr-step" id="box-wifi">
+        <div class="qr-step qr-page active" id="box-wifi">
           <div class="qr-step-header">
             <span class="qr-step-number">1</span>
             <p class="qr-instruction">Mit dem Fotobox-WLAN verbinden</p>
@@ -82,15 +84,17 @@
             <p><span class="qr-label">WLAN</span> <span id="qr-ssid"></span></p>
             <p><span class="qr-label">Passwort</span> <span id="qr-password"></span></p>
           </div>
+          <button id="btn-qr-next" class="btn">Weiter &rsaquo;</button>
         </div>
 
-        <div class="qr-step" id="box-download">
+        <div class="qr-step qr-page" id="box-download">
           <div class="qr-step-header">
             <span class="qr-step-number" id="step-number-download">2</span>
             <p class="qr-instruction" id="instruction-download">Code scannen und Fotos herunterladen</p>
           </div>
           <img id="qr-download-img" class="qr-img" src="" alt="Download QR-Code" />
           <p class="qr-url" id="qr-url"></p>
+          <button id="btn-qr-back" class="btn btn-outline">&lsaquo; Zur&uuml;ck</button>
         </div>
       </div>
 

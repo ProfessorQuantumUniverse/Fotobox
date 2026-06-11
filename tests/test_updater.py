@@ -138,13 +138,14 @@ class TestStartUpdateAsync:
              patch.object(updater, "current_revision", side_effect=["old", "new"]):
             updater.start_update_async(
                 lambda p, m: None,
-                lambda ok, msg: results.append((ok, msg)),
+                lambda ok, msg, changed: results.append((ok, msg, changed)),
             )
             # The worker runs in a thread; join via the lock
             with updater._update_lock:
                 pass
         mock_run.assert_called_once()
         assert results and results[0][0] is True
+        assert results[0][2] is True  # old != new → changed
 
     def test_done_called_on_failure(self):
         results = []
@@ -152,7 +153,7 @@ class TestStartUpdateAsync:
              patch.object(updater, "current_revision", return_value="old"):
             updater.start_update_async(
                 lambda p, m: None,
-                lambda ok, msg: results.append((ok, msg)),
+                lambda ok, msg, changed: results.append((ok, msg, changed)),
             )
             with updater._update_lock:
                 pass

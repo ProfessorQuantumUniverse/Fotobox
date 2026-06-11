@@ -19,6 +19,11 @@ def _gphoto_router(gphoto_behaviour):
     def side_effect(cmd, **kwargs):
         if cmd[0] == "pkill":
             return MagicMock(returncode=1)
+        # Nur das eigentliche Capture-Kommando bekommt das Test-Verhalten.
+        # Der Display-Off-Call (viewfinder=1), der nach der Aufnahme in einem
+        # Hintergrund-Thread läuft, wird als harmloser Erfolg behandelt.
+        if "--capture-image-and-download" not in cmd:
+            return MagicMock(returncode=0)
         return gphoto_behaviour(cmd, **kwargs)
 
     return side_effect
@@ -105,6 +110,8 @@ class TestCaptureImage:
         def side_effect(cmd, **kwargs):
             if cmd[0] == "pkill":
                 raise FileNotFoundError
+            if "--capture-image-and-download" not in cmd:
+                return MagicMock(returncode=0)  # post-capture display-off thread
             filepath = cmd[cmd.index("--filename") + 1]
             with open(filepath, "wb") as f:
                 f.write(b"\xff\xd8fake-jpeg")
