@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "fotobox",
+      "runtimeExecutable": "venv/bin/python",
+      "runtimeArgs": ["-m", "server.app"],
+      "port": 5050,
+      "env": {
+        "FOTOBOX_PORT": "5050",
+        "FOTOBOX_SHARE_MODE": "hotspot",
+        "FOTOBOX_PHOTO_DIR": "/tmp/fotobox-shots",
+        "FOTOBOX_AUTO_UPDATE": "0",
+        "FOTOBOX_ETH_IFACE": "eth-none"
+      }
+    }
+  ]
+}
