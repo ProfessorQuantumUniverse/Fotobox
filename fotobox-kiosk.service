@@ -1,0 +1,18 @@
+[Unit]
+Description=Fotobox Kiosk Browser (Chromium ohne Desktop)
+After=fotobox.service systemd-user-sessions.service
+Wants=fotobox.service
+
+[Service]
+Type=simple
+User=fotobox
+PAMName=login
+TTYPath=/dev/tty1
+WorkingDirectory=/home/fotobox/Fotobox
+# Startet nur den X-Server + Chromium – keine Desktop-Umgebung.
+ExecStart=/usr/bin/xinit /home/fotobox/Fotobox/kiosk.sh -- :0 vt1 -nolisten tcp -nocursor
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

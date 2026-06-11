@@ -20,13 +20,25 @@ pip install -r requirements.txt
 # Create photo directory
 mkdir -p "${HOME}/photos"
 
-# Ensure start helper is executable
-chmod +x "$SCRIPT_DIR/start.sh"
+# .env anlegen, falls noch keine existiert
+if [ ! -f "$SCRIPT_DIR/.env" ]; then
+  cp "$SCRIPT_DIR/.env.example" "$SCRIPT_DIR/.env"
+  echo ">> .env aus Vorlage erstellt – bitte anpassen!"
+fi
 
-# Install systemd service
+# Ensure kiosk helper is executable
+chmod +x "$SCRIPT_DIR/kiosk.sh"
+
+# Install systemd services
 sudo cp fotobox.service /etc/systemd/system/
+sudo cp fotobox-kiosk.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable fotobox.service
 
 echo ""
 echo "Setup complete.  Start with:  sudo systemctl start fotobox"
+echo ""
+echo "Kiosk ohne Desktop (empfohlen auf dem Pi 3):"
+echo "  1. raspi-config → System Options → Boot / Auto Login → Console Autologin"
+echo "  2. sudo apt-get install -y xserver-xorg xinit chromium-browser"
+echo "  3. sudo systemctl enable --now fotobox-kiosk.service"
