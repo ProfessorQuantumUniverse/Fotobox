@@ -159,6 +159,91 @@
     }, 1000);
   }
 
+  // ── Ball-Physics-Ladeanimation ────────────────────────
+
+  function startBallAnimation(canvas) {
+    var W = canvas.width, H = canvas.height;
+    var ctx = canvas.getContext("2d");
+    var raf = null;
+    var running = true;
+
+    var N = 11;
+    var balls = [];
+    for (var i = 0; i < N; i++) {
+      var r = 8 + Math.random() * 22;
+      balls.push({
+        x: r + Math.random() * (W - 2 * r),
+        y: -r * 3 - Math.random() * H * 0.9,
+        vx: (Math.random() - 0.5) * 3.5,
+        vy: Math.random() * 2,
+        r: r,
+        m: r * r,
+      });
+    }
+
+    var G = 0.38, REST = 0.52, AIR = 0.985, GFRIC = 0.84;
+
+    function step() {
+      if (!running) return;
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, W, H);
+
+      for (var i = 0; i < balls.length; i++) {
+        var b = balls[i];
+        b.vy += G;
+        b.vx *= AIR;
+        b.x += b.vx;
+        b.y += b.vy;
+        if (b.x - b.r < 0)  { b.x = b.r;     b.vx =  Math.abs(b.vx) * REST; }
+        if (b.x + b.r > W)  { b.x = W - b.r; b.vx = -Math.abs(b.vx) * REST; }
+        if (b.y + b.r > H)  { b.y = H - b.r; b.vy = -Math.abs(b.vy) * REST; b.vx *= GFRIC; }
+      }
+
+      for (var i = 0; i < balls.length; i++) {
+        for (var j = i + 1; j < balls.length; j++) {
+          var a = balls[i], b2 = balls[j];
+          var dx = b2.x - a.x, dy = b2.y - a.y;
+          var d2 = dx * dx + dy * dy;
+          var md = a.r + b2.r;
+          if (d2 < md * md && d2 > 0.001) {
+            var d = Math.sqrt(d2);
+            var nx = dx / d, ny = dy / d;
+            var sep = (md - d) * 0.5;
+            var mt = a.m + b2.m;
+            a.x  -= nx * sep * (b2.m / mt);
+            a.y  -= ny * sep * (b2.m / mt);
+            b2.x += nx * sep * (a.m  / mt);
+            b2.y += ny * sep * (a.m  / mt);
+            var dvx = a.vx - b2.vx, dvy = a.vy - b2.vy;
+            var dot = dvx * nx + dvy * ny;
+            if (dot > 0) {
+              var imp = 2 * dot / mt * REST;
+              a.vx  -= imp * b2.m * nx;  a.vy  -= imp * b2.m * ny;
+              b2.vx += imp * a.m  * nx;  b2.vy += imp * a.m  * ny;
+            }
+          }
+        }
+      }
+
+      for (var i = 0; i < balls.length; i++) {
+        var b = balls[i];
+        if (b.y + b.r <= 0) continue;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+        ctx.fillStyle = "#fff";
+        ctx.fill();
+      }
+
+      raf = requestAnimationFrame(step);
+    }
+    raf = requestAnimationFrame(step);
+
+    return function () {
+      running = false;
+      if (raf) { cancelAnimationFrame(raf); raf = null; }
+    };
+  }
+
   // ── Review-Auto-Reset ─────────────────────────────────
 
   function startReviewTimer() {
@@ -198,11 +283,44 @@
           break;
 
         case "photo_taken":
-          // Downskalierte Preview laden – volle DSLR-Auflösung überfordert
-          // den Browser auf dem Pi 3.
-          reviewPhoto.src = "/photos/preview/" + encodeURIComponent(msg.data.filename);
-          showScreen(screenReview);
-          startReviewTimer();
+          (function (filename) {
+            var loader    = document.getElementById("review-loader");
+            var photoFrame = document.getElementById("photo-frame");
+            // Zustände zurücksetzen
+            loader.classList.remove("done");
+            photoFrame.classList.remove("loaded");
+            reviewPhoto.onload = null;
+            reviewPhoto.src = "";
+
+            showScreen(screenReview);
+
+            var cancelled = false;
+            var stopAnim  = null;
+
+            // Canvas nach dem ersten Layout-Pass befüllen
+            requestAnimationFrame(function () {
+              if (cancelled) return;
+              loader.width  = loader.clientWidth  || 600;
+              loader.height = loader.clientHeight || 400;
+              stopAnim = startBallAnimation(loader);
+            });
+
+            reviewPhoto.onload = function () {
+              cancelled = true;
+              if (stopAnim) { stopAnim(); }
+              loader.classList.add("done");
+              photoFrame.classList.add("loaded");
+              startReviewTimer();
+            };
+            reviewPhoto.onerror = function () {
+              cancelled = true;
+              if (stopAnim) { stopAnim(); }
+              loader.classList.add("done");
+              photoFrame.classList.add("loaded");
+              startReviewTimer();
+            };
+            reviewPhoto.src = "/photos/preview/" + encodeURIComponent(filename);
+          }(msg.data.filename));
           break;
 
         case "error":
@@ -304,24 +422,15 @@
           var instructionDownload = document.getElementById("instruction-download");
           var stepNumberDownload = document.getElementById("step-number-download");
 
-          if (data.share_mode === "nextcloud") {
-            // Nextcloud: nur ein QR-Code, kein WLAN-Schritt
-            boxWifi.style.display = "none";
-            stepNumberDownload.textContent = "1";
-            instructionDownload.textContent = "Code mit der Kamera-App scannen";
-            qrDownloadImg.src = data.download_qr;
-            qrUrl.textContent = "";
-          } else {
-            // Hotspot: zwei Schritte untereinander (WLAN, dann Download)
-            boxWifi.style.display = "flex";
-            stepNumberDownload.textContent = "2";
-            instructionDownload.textContent = "Code scannen und Fotos herunterladen";
-            qrCodeImg.src = data.wifi_qr;
-            qrDownloadImg.src = data.download_qr;
-            qrSsid.textContent = data.ssid;
-            qrPassword.textContent = data.password;
-            qrUrl.textContent = data.download_url;
-          }
+          // Hotspot: zwei Schritte untereinander (WLAN, dann Download)
+          boxWifi.style.display = "flex";
+          stepNumberDownload.textContent = "2";
+          instructionDownload.textContent = "Code scannen und Fotos herunterladen";
+          qrCodeImg.src = data.wifi_qr;
+          qrDownloadImg.src = data.download_qr;
+          qrSsid.textContent = data.ssid;
+          qrPassword.textContent = data.password;
+          qrUrl.textContent = data.download_url;
 
           showScreen(screenQr);
           if (window.QR_TIMEOUT_SECONDS && QR_TIMEOUT_SECONDS > 0) {

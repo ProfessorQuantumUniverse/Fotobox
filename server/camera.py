@@ -16,6 +16,30 @@ def ensure_photo_dir() -> str:
     return PHOTO_DIR
 
 
+def disable_display() -> None:
+    """Turn off the camera's LCD while tethered over USB.
+
+    Tries the two most common gphoto2 config keys for Canon DSLRs.
+    Completely non-fatal: if the camera isn't connected or doesn't
+    support the config, the app continues normally.
+    """
+    for cfg in ("output=Off", "viewfinder=1"):
+        try:
+            r = subprocess.run(
+                ["gphoto2", "--set-config", cfg],
+                capture_output=True,
+                timeout=5,
+            )
+            if r.returncode == 0:
+                logger.info("Camera display disabled via --set-config %s", cfg)
+                return
+        except FileNotFoundError:
+            return  # gphoto2 not installed (dev machine)
+        except subprocess.TimeoutExpired:
+            logger.debug("gphoto2 --set-config %s timed out", cfg)
+    logger.debug("Camera display could not be disabled (may not be connected yet)")
+
+
 def capture_image() -> str:
     """Trigger the camera, download the image, and return its file path.
 

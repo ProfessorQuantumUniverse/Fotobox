@@ -17,8 +17,7 @@ def photo_dir(tmp_path):
     os.makedirs(d, exist_ok=True)
     with patch("server.app.PHOTO_DIR", d), \
          patch("server.camera.PHOTO_DIR", d), \
-         patch("server.previews.PHOTO_DIR", d), \
-         patch("server.nextcloud_client.PHOTO_DIR", d):
+         patch("server.previews.PHOTO_DIR", d):
         yield d
 
 

@@ -9,29 +9,6 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-# --- Sharing Mode ---
-# "hotspot" (lokales WLAN) oder "nextcloud" (Cloud Upload)
-SHARE_MODE = os.environ.get("FOTOBOX_SHARE_MODE", "nextcloud").lower()
-if SHARE_MODE not in ("hotspot", "nextcloud"):
-    logger.warning("Unknown FOTOBOX_SHARE_MODE=%r, falling back to 'hotspot'", SHARE_MODE)
-    SHARE_MODE = "hotspot"
-
-# --- Nextcloud Settings ---
-# Keine Defaults für URL/Credentials: die gehören in die .env-Datei
-# (App-Passwort verwenden: Nextcloud > Sicherheit > Geräte & Sitzungen).
-NEXTCLOUD_URL = os.environ.get("FOTOBOX_NC_URL", "")
-NEXTCLOUD_USERNAME = os.environ.get("FOTOBOX_NC_USER", "")
-NEXTCLOUD_PASSWORD = os.environ.get("FOTOBOX_NC_PASS", "")
-NEXTCLOUD_BASE_FOLDER = os.environ.get("FOTOBOX_NC_FOLDER", "Fotobox")
-# Timeout für alle Nextcloud-HTTP-Requests (Sekunden) – verhindert, dass die
-# UI hängt, wenn die Cloud nicht erreichbar ist.
-NEXTCLOUD_TIMEOUT = int(os.environ.get("FOTOBOX_NC_TIMEOUT", "10"))
-
-if SHARE_MODE == "nextcloud" and not (NEXTCLOUD_URL and NEXTCLOUD_USERNAME and NEXTCLOUD_PASSWORD):
-    logger.warning(
-        "FOTOBOX_SHARE_MODE=nextcloud, aber FOTOBOX_NC_URL/_USER/_PASS sind nicht "
-        "vollständig gesetzt – Uploads werden fehlschlagen."
-    )
 
 # --- Serial (Arduino) ---
 SERIAL_PORT = os.environ.get("FOTOBOX_SERIAL_PORT", "/dev/ttyUSB0")

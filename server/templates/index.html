@@ -52,8 +52,11 @@
   <!-- Review screen (show captured photo + action buttons) -->
   <div id="screen-review" class="screen">
     <div class="review-content">
-      <div class="photo-frame">
-        <img id="review-photo" src="" alt="Dein Foto" />
+      <div class="review-photo-slot">
+        <canvas id="review-loader"></canvas>
+        <div class="photo-frame" id="photo-frame">
+          <img id="review-photo" src="" alt="Dein Foto" />
+        </div>
       </div>
       <div class="review-buttons">
         <button id="btn-more-photos" class="btn btn-outline">Noch ein Foto</button>
