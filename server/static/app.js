@@ -41,6 +41,12 @@
     for (var i = 0; i < pages.length; i++) {
       pages[i].classList.toggle("active", pages[i].id === id);
     }
+    // Auto-Rückkehr zur Homepage NUR auf der letzten Folie (Download). Auf der
+    // ersten Folie (WLAN) bleibt der Screen stehen, bis der Gast „Weiter“ tippt.
+    if (qrTimeout) { clearTimeout(qrTimeout); qrTimeout = null; }
+    if (id === "box-download" && window.QR_TIMEOUT_SECONDS && QR_TIMEOUT_SECONDS > 0) {
+      qrTimeout = setTimeout(returnToIdle, QR_TIMEOUT_SECONDS * 1000);
+    }
   }
 
   if (btnQrNext) {
@@ -273,6 +279,9 @@
           }
           // Steht das Menü schon offen, ignorieren wir weitere Drücke.
           if (shutdownActive) { break; }
+          // Läuft bereits ein Countdown, NICHT neu starten – die schnellen
+          // Taps zählen nur für die Burst-Erkennung (Shutdown-Menü) weiter.
+          if (screenCountdown.classList.contains("active")) { break; }
           // Der physische Knopf startet sonst IMMER eine neue Session sofort.
           // Auf dem QR-Screen heißt das: alten Hotspot abbauen, dann direkt
           // in den Countdown (die Server-Session wurde bei "Fertig" geleert).
@@ -403,17 +412,8 @@
           qrPassword.textContent = data.password;
           qrUrl.textContent = data.download_url;
 
-          showQrPage("box-wifi");  // immer mit Schritt 1 starten
           showScreen(screenQr);
-          // Auto-Rückkehr zur Homepage – egal auf welcher Folie. Dabei wird
-          // der Hotspot abgebaut. Fällt die Konfig auf 0/leer, greift ein
-          // sicherer Default, damit der QR-Screen NIE dauerhaft hängen bleibt.
-          var qrSecs = (window.QR_TIMEOUT_SECONDS && QR_TIMEOUT_SECONDS > 0) ? QR_TIMEOUT_SECONDS : 120;
-          qrTimeout = setTimeout(function () {
-            fetch("/session/stop-ap", { method: "POST" })
-              .catch(function (err) { console.error("stop-ap error:", err); });
-            returnToIdle();
-          }, qrSecs * 1000);
+          showQrPage("box-wifi");  // immer mit Schritt 1 starten (kein Timeout)
         })
         .catch(function (err) {
           console.error("session/finish error:", err);

@@ -225,10 +225,10 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 /* Fester Bereich für Loader-Canvas und Foto-Frame (beide liegen übereinander) */
 .review-photo-slot {
   position: relative;
-  width: calc(100vw - 4rem);
-  max-width: 700px;
+  width: calc(100vw - 6rem);
+  max-width: 620px;
   /* Höhe: 3:2-Ratio, aber maximal so viel, dass Buttons + Padding noch passen */
-  max-height: calc(100vh - 170px);
+  max-height: calc(100vh - 180px);
   aspect-ratio: 3 / 2;
   flex-shrink: 0;
   background: #000;
@@ -396,8 +396,7 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
   position: absolute;
   inset: 0;
   background: var(--fg);
-  /* Dünnerer Print-Rand → das Foto selbst wird größer. */
-  padding: 6px 6px 9px;
+  padding: 12px 12px 18px;
   line-height: 0;
   display: flex;
   align-items: center;
