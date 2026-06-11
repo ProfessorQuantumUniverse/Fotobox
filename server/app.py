@@ -115,28 +115,36 @@ def _on_serial_message(message: str) -> None:
 # ── Ethernet auto-update ─────────────────────────────────────────────────
 
 def _emit_update_progress(percent: int, text: str) -> None:
-    event_queue.put({"event": "update_progress", "data": {"percent": percent, "message": text}})
+    # Auto-Update läuft still im Hintergrund: Fortschritt nur ins Log, kein
+    # Toast. Der Nutzer sieht nur das Ergebnis, wenn es eine neue Version gibt.
+    logger.debug("Auto-update %d%%: %s", percent, text)
 
 
-def _on_update_done(success: bool, message: str) -> None:
-    event_queue.put({
-        "event": "update_done",
-        "data": {"success": success, "message": message, "revision": current_revision()},
-    })
+def _on_update_done(success: bool, message: str, changed: bool) -> None:
+    # Komplett still bleiben, AUSSER es wurde wirklich eine neue Version
+    # geladen. Fehler (z. B. offline) werden bewusst NICHT als Toast gezeigt –
+    # die Box wird später auch offline betrieben, das ist kein Fehlerfall.
+    if success and changed:
+        event_queue.put({
+            "event": "update_done",
+            "data": {"message": message, "revision": current_revision()},
+        })
+    else:
+        logger.debug("Auto-update still: success=%s changed=%s (%s)", success, changed, message)
 
 
-def _on_ethernet_connect() -> None:
-    """Cable plugged in – announce it and pull the newest version."""
-    event_queue.put({"event": "ethernet_connected"})
+def _check_for_update() -> None:
+    """Silently check for a newer version (no-op while one is already running)."""
     if AUTO_UPDATE:
-        _emit_update_progress(0, "Update wird gestartet …")
         start_update_async(_emit_update_progress, _on_update_done)
 
 
 def _on_ethernet_disconnect() -> None:
-    """Cable pulled out – announce it and roll back any partial update."""
+    """Cable pulled out – silently roll back any partial update.
+
+    Kein Toast: das Ausstecken ist gewollt (Development) und kein Fehler.
+    """
     cancel_update()
-    event_queue.put({"event": "ethernet_disconnected"})
 
 # ── Routes ─────────────────────────────────────────────────────────────
 
@@ -312,8 +320,8 @@ def start_ethernet_monitor() -> None:
     try:
         ethernet_monitor = EthernetMonitor(
             iface=ETH_IFACE,
-            on_connect=_on_ethernet_connect,
             on_disconnect=_on_ethernet_disconnect,
+            on_connected_tick=_check_for_update,  # alle poll_interval s, still
             poll_interval=ETH_POLL_INTERVAL,
         )
         ethernet_monitor.start()

@@ -144,7 +144,7 @@ def run_update(progress: ProgressCallback) -> None:
         logger.info("Updated %s → %s", before[:7], after[:7])
 
 
-def start_update_async(progress: ProgressCallback, done: Callable[[bool, str], None]) -> None:
+def start_update_async(progress: ProgressCallback, done: Callable[[bool, str, bool], None]) -> None:
     """Run :func:`run_update` in a daemon thread.
 
     ``done(success, message)`` is invoked when finished. Only one update runs
@@ -160,12 +160,13 @@ def start_update_async(progress: ProgressCallback, done: Callable[[bool, str], N
             run_update(progress)
             new_rev = current_revision()
             if new_rev == changed_from:
-                done(True, "Bereits aktuell")
+                done(True, "Bereits aktuell", False)
             else:
-                done(True, f"Aktualisiert auf {new_rev}")
+                done(True, f"Aktualisiert auf {new_rev}", True)
         except Exception as exc:  # noqa: BLE001 – report any failure to the UI
-            logger.error("Update failed: %s", exc)
-            done(False, str(exc))
+            # Offline-Betrieb ist gewollt: Fehler nur leise loggen, kein Error.
+            logger.debug("Auto-update check failed (offline?): %s", exc)
+            done(False, str(exc), False)
         finally:
             _update_lock.release()
 
