@@ -1,6 +1,6 @@
 <div align="center">
 
-# 📸 FOTOBOX
+# 📸 FOTOBOX GREAT!!!
 
 **Eine DSLR-Photobox auf dem Raspberry Pi – Knopfdruck, Countdown, Foto, fertig.**
 

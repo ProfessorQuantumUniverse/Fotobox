@@ -10,7 +10,6 @@ import json
 import logging
 import os
 import queue
-import subprocess
 import time
 from threading import Lock, Thread, Timer
 from typing import Optional
@@ -32,13 +31,11 @@ from server.config import (
     PORT,
     QR_TIMEOUT_SECONDS,
     REVIEW_SECONDS,
-    USB_BACKUP,
 )
 from server.network_monitor import EthernetMonitor
 from server.previews import get_or_create_preview, warm_preview_async
 from server.serial_reader import SerialReader
 from server.updater import cancel_update, current_revision, start_update_async
-from server.usb_backup import backup_photo_async
 
 logging.basicConfig(
     level=logging.INFO,
@@ -100,10 +97,6 @@ def _on_serial_message(message: str) -> None:
             filename = os.path.basename(filepath)
             with _session_lock:
                 _session_photos.append(filename)
-            # Jedes Foto SOFORT auf einen evtl. gesteckten USB-Stick sichern –
-            # auch wenn die Session später abgebrochen wird (alle Fotos zählen).
-            if USB_BACKUP:
-                backup_photo_async(filepath)
             # Preview im Hintergrund vorberechnen, damit der Review-Screen
             # sie sofort bekommt.
             warm_preview_async(filename)
@@ -290,34 +283,6 @@ def session_stop_ap():
     """Tear down the temporary Access Point (profile is kept for reuse)."""
     Thread(target=stop_ap, daemon=True).start()
     return jsonify({"status": "stopping"})
-
-
-def _do_shutdown() -> None:
-    """Bring everything down cleanly, then power off the Pi.
-
-    Erst den Hotspot abbauen und Puffer auf die SD-Karte schreiben (``sync``),
-    damit das nächste Booten sauber bleibt – dann ``sudo shutdown``.
-    """
-    try:
-        stop_ap()
-    except Exception as exc:  # pragma: no cover - best effort
-        logger.warning("stop_ap during shutdown failed: %s", exc)
-    try:
-        subprocess.run(["sync"], timeout=10)
-    except Exception:  # pragma: no cover - best effort
-        pass
-    try:
-        subprocess.run(["sudo", "shutdown", "-h", "now"], timeout=10)
-    except Exception as exc:  # pragma: no cover - best effort
-        logger.error("shutdown command failed: %s", exc)
-
-
-@app.route("/system/shutdown", methods=["POST"])
-def system_shutdown():
-    """Gracefully power the Pi off (localhost-only, kiosk shutdown menu)."""
-    logger.info("Shutdown requested via kiosk menu")
-    Thread(target=_do_shutdown, daemon=True).start()
-    return jsonify({"status": "shutting_down"})
 
 
 @app.route("/trigger", methods=["POST"])
