@@ -23,22 +23,18 @@ from server.camera import capture_image, disable_display, read_ac_power
 from server.config import (
     ALLOW_REMOTE_CONTROL,
     AP_IP,
-    AUTO_UPDATE,
     CAMERA_POWER_POLL,
-    ETH_IFACE,
-    ETH_POLL_INTERVAL,
     HOST,
     PHOTO_DIR,
     PORT,
     QR_TIMEOUT_SECONDS,
     REVIEW_SECONDS,
     USB_BACKUP,
+    USB_POLL,
 )
-from server.network_monitor import EthernetMonitor
 from server.previews import get_or_create_preview, warm_preview_async
 from server.serial_reader import SerialReader
-from server.updater import cancel_update, current_revision, start_update_async
-from server.usb_backup import backup_photo_async
+from server.usb_backup import backup_all_async, backup_photo_async, find_usb_mount
 
 logging.basicConfig(
     level=logging.INFO,
@@ -121,39 +117,33 @@ def _on_serial_message(message: str) -> None:
     elif message == "button_pressed":
         event_queue.put({"event": "button_pressed"})
 
-# ── Ethernet auto-update ─────────────────────────────────────────────────
+# ── USB-Stick-Überwachung ────────────────────────────────────────────────
 
-def _emit_update_progress(percent: int, text: str) -> None:
-    # Auto-Update läuft still im Hintergrund: Fortschritt nur ins Log, kein
-    # Toast. Der Nutzer sieht nur das Ergebnis, wenn es eine neue Version gibt.
-    logger.debug("Auto-update %d%%: %s", percent, text)
+def _usb_storage_loop() -> None:
+    """Poll for a mounted USB stick and toast on insert/removal.
 
-
-def _on_update_done(success: bool, message: str, changed: bool) -> None:
-    # Komplett still bleiben, AUSSER es wurde wirklich eine neue Version
-    # geladen. Fehler (z. B. offline) werden bewusst NICHT als Toast gezeigt –
-    # die Box wird später auch offline betrieben, das ist kein Fehlerfall.
-    if success and changed:
-        event_queue.put({
-            "event": "update_done",
-            "data": {"message": message, "revision": current_revision()},
-        })
-    else:
-        logger.debug("Auto-update still: success=%s changed=%s (%s)", success, changed, message)
-
-
-def _check_for_update() -> None:
-    """Silently check for a newer version (no-op while one is already running)."""
-    if AUTO_UPDATE:
-        start_update_async(_emit_update_progress, _on_update_done)
-
-
-def _on_ethernet_disconnect() -> None:
-    """Cable pulled out – silently roll back any partial update.
-
-    Kein Toast: das Ausstecken ist gewollt (Development) und kein Fehler.
+    Beim Einstecken erscheint ein Toast und ALLE bereits aufgenommenen Fotos
+    werden sofort gesichert; danach sichert jede neue Aufnahme zusätzlich auf
+    den Stick (bis er wieder abgezogen wird). Das Abziehen meldet ebenfalls
+    einen Toast.
     """
-    cancel_update()
+    present = find_usb_mount() is not None
+    if present:
+        # Stick steckte schon beim Start → vorhandene Fotos sichern (kein Toast).
+        backup_all_async(PHOTO_DIR)
+    while True:
+        time.sleep(USB_POLL)
+        now_present = find_usb_mount() is not None
+        if now_present == present:
+            continue
+        present = now_present
+        if present:
+            logger.info("USB stick inserted – backing up all photos")
+            backup_all_async(PHOTO_DIR)
+            event_queue.put({"event": "usb_storage", "data": {"present": True}})
+        else:
+            logger.info("USB stick removed")
+            event_queue.put({"event": "usb_storage", "data": {"present": False}})
 
 # ── Kamera-Stromüberwachung (USB-Laden) ──────────────────────────────────
 
@@ -363,7 +353,6 @@ def download_gallery():
 # ── Startup ─────────────────────────────────────────────────────────────
 
 serial_reader: Optional[SerialReader] = None
-ethernet_monitor: Optional[EthernetMonitor] = None
 
 
 def start_serial() -> None:
@@ -375,22 +364,6 @@ def start_serial() -> None:
     except Exception as exc:
         logger.warning("Serial reader not available: %s (running without Arduino)", exc)
         serial_reader = None
-
-
-def start_ethernet_monitor() -> None:
-    """Watch the Ethernet cable for auto-update (non-fatal on failure)."""
-    global ethernet_monitor
-    try:
-        ethernet_monitor = EthernetMonitor(
-            iface=ETH_IFACE,
-            on_disconnect=_on_ethernet_disconnect,
-            on_connected_tick=_check_for_update,  # alle poll_interval s, still
-            poll_interval=ETH_POLL_INTERVAL,
-        )
-        ethernet_monitor.start()
-    except Exception as exc:
-        logger.warning("Ethernet monitor not available: %s", exc)
-        ethernet_monitor = None
 
 
 def create_app():
@@ -411,15 +384,14 @@ def create_app():
 if __name__ == "__main__":
     create_app()
     start_serial()
-    start_ethernet_monitor()
     Thread(target=disable_display, daemon=True).start()
     if CAMERA_POWER_POLL > 0:
         Thread(target=_camera_power_loop, daemon=True).start()
-    logger.info("Fotobox running version %s", current_revision())
+    if USB_BACKUP and USB_POLL > 0:
+        Thread(target=_usb_storage_loop, daemon=True).start()
+    logger.info("Fotobox running")
     try:
         app.run(host=HOST, port=PORT, debug=False, threaded=True)
     finally:
         if serial_reader is not None:
             serial_reader.stop()
-        if ethernet_monitor is not None:
-            ethernet_monitor.stop()

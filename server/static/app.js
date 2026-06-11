@@ -81,6 +81,7 @@
     link: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>',
     unlink: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 7l3-3a5 5 0 0 1 7 7"/><path d="M8 17l-3 3"/><path d="M3 3l18 18"/><path d="M10 13a5 5 0 0 0 6 .9"/></svg>',
     check: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>',
+    usb: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V4"/><path d="M9 7l3-3 3 3"/><circle cx="12" cy="21" r="1"/><path d="M8 14l-2 2v2"/><circle cx="6" cy="19" r="1"/><path d="M16 12l2 2v3"/><rect x="16.5" y="9.5" width="3" height="3"/></svg>',
     cross: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
     spinner: '<div class="toast-spinner"></div>'
   };
@@ -339,16 +340,26 @@
           setTimeout(returnToIdle, 5000);
           break;
 
-        case "update_done":
-          // Server schickt dieses Event NUR, wenn wirklich eine neue Version
-          // geladen wurde. Alles andere läuft still im Hintergrund.
-          showToast({
-            icon: "check",
-            title: "Update installiert",
-            message: msg.data.message || "Neue Version aktiv",
-            progress: false,
-            autohide: 5000
-          });
+        case "usb_storage":
+          // USB-Stick ein-/ausgesteckt: Fotos werden gesichert, solange er steckt.
+          if (msg.data.present) {
+            showToast({
+              icon: "usb",
+              title: "USB-Stick erkannt",
+              message: "Alle Fotos werden gesichert",
+              progress: false,
+              autohide: 4000
+            });
+          } else {
+            showToast({
+              icon: "unlink",
+              title: "USB-Stick entfernt",
+              message: "Keine Sicherung mehr",
+              variant: "error",
+              progress: false,
+              autohide: 4000
+            });
+          }
           break;
 
         case "camera_power":

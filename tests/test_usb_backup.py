@@ -3,7 +3,7 @@
 import os
 from unittest.mock import patch
 
-from server.usb_backup import backup_photo, find_usb_mount
+from server.usb_backup import backup_all, backup_photo, find_usb_mount
 
 
 class TestFindUsbMount:
@@ -57,3 +57,38 @@ class TestBackupPhoto:
         mount = tmp_path / "stick"
         mount.mkdir()
         assert backup_photo(str(photo), mount=str(mount)) is None
+
+
+class TestBackupAll:
+    def test_copies_all_jpgs(self, tmp_path):
+        photos = tmp_path / "photos"
+        photos.mkdir()
+        for name in ("a.jpg", "b.jpg", "notes.txt"):
+            (photos / name).write_bytes(b"data-" + name.encode())
+        mount = tmp_path / "stick"
+        mount.mkdir()
+
+        copied = backup_all(str(photos), mount=str(mount))
+
+        assert copied == 2
+        dest = mount / "Fotobox"
+        assert (dest / "a.jpg").is_file()
+        assert (dest / "b.jpg").is_file()
+        assert not (dest / "notes.txt").exists()
+
+    def test_skips_already_backed_up(self, tmp_path):
+        photos = tmp_path / "photos"
+        photos.mkdir()
+        (photos / "a.jpg").write_bytes(b"same")
+        mount = tmp_path / "stick"
+        mount.mkdir()
+
+        assert backup_all(str(photos), mount=str(mount)) == 1
+        assert backup_all(str(photos), mount=str(mount)) == 0  # schon gesichert
+
+    def test_no_mount_returns_zero(self, tmp_path):
+        photos = tmp_path / "photos"
+        photos.mkdir()
+        (photos / "a.jpg").write_bytes(b"x")
+        with patch("server.usb_backup.find_usb_mount", return_value=None):
+            assert backup_all(str(photos)) == 0

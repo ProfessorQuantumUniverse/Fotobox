@@ -74,3 +74,42 @@ def backup_photo(filepath: str, mount: Optional[str] = None) -> Optional[str]:
 def backup_photo_async(filepath: str) -> None:
     """Fire-and-forget USB-Backup in einem Daemon-Thread (blockiert nie)."""
     threading.Thread(target=backup_photo, args=(filepath,), daemon=True).start()
+
+
+def backup_all(photo_dir: str, mount: Optional[str] = None) -> int:
+    """Copy every JPEG in ``photo_dir`` to the stick. Returns the copy count.
+
+    Wird beim Einstecken aufgerufen, damit auch schon vorhandene Fotos (z. B.
+    aus abgebrochenen Sessions) gesichert werden. Bereits vorhandene Dateien
+    gleicher Größe werden übersprungen.
+    """
+    mount = mount or find_usb_mount()
+    if not mount or not os.path.isdir(photo_dir):
+        return 0
+    dest_dir = os.path.join(mount, USB_BACKUP_SUBDIR)
+    copied = 0
+    try:
+        os.makedirs(dest_dir, exist_ok=True)
+    except OSError as exc:
+        logger.warning("USB backup_all failed to create %s: %s", dest_dir, exc)
+        return 0
+    for name in sorted(os.listdir(photo_dir)):
+        if not name.lower().endswith(".jpg"):
+            continue
+        src = os.path.join(photo_dir, name)
+        dest = os.path.join(dest_dir, name)
+        try:
+            if os.path.exists(dest) and os.path.getsize(dest) == os.path.getsize(src):
+                continue  # schon gesichert
+            shutil.copy2(src, dest)
+            copied += 1
+        except OSError as exc:
+            logger.warning("USB backup_all failed for %s: %s", src, exc)
+    if copied:
+        logger.info("USB backup_all copied %d photo(s) to %s", copied, dest_dir)
+    return copied
+
+
+def backup_all_async(photo_dir: str) -> None:
+    """Fire-and-forget bulk USB-Backup in einem Daemon-Thread."""
+    threading.Thread(target=backup_all, args=(photo_dir,), daemon=True).start()
