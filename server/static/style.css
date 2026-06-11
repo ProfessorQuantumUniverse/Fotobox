@@ -210,54 +210,16 @@ html, body {
   padding: 1.5rem;
 }
 
-/* Fester Bereich für Loader-Canvas und Foto-Frame (beide liegen übereinander) */
-.review-photo-slot {
-  position: relative;
-  width: calc(100vw - 6rem);
-  max-width: 620px;
-  /* Höhe: 3:2-Ratio, aber maximal so viel, dass Buttons + Padding noch passen */
-  max-height: calc(100vh - 180px);
-  aspect-ratio: 3 / 2;
-  flex-shrink: 0;
-  background: #000;
-}
-
-#review-loader {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  display: block;
-  opacity: 1;
-  transition: opacity 0.55s ease;
-}
-
-#review-loader.done {
-  opacity: 0;
-  pointer-events: none;
-}
-
-/* Weißer Rahmen wie ein Print – erscheint zeitgleich mit dem Foto */
+/* Weißer Rahmen wie ein Print */
 .photo-frame {
-  position: absolute;
-  inset: 0;
   background: var(--fg);
   padding: 12px 12px 18px;
   line-height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: opacity 0.55s ease;
-}
-
-.photo-frame.loaded {
-  opacity: 1;
 }
 
 .photo-frame img {
   max-width: calc(100vw - 6rem);
-  max-height: 55vh; /* Verkleinert von 68vh, damit Buttons Platz haben */
+  max-height: 68vh;
   object-fit: contain;
 }
 
@@ -335,7 +297,7 @@ html, body {
   text-align: center;
   padding: 2rem;
   max-height: 100vh;
-  overflow: hidden; /* Scrollen komplett deaktivieren */
+  overflow-y: auto;
 }
 
 .qr-content h2 {
