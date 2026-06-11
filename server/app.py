@@ -14,13 +14,22 @@ from threading import Lock, Thread, Timer
 from typing import Optional
 
 import qrcode
-from flask import Flask, Response, jsonify, render_template, send_from_directory
+from flask import Flask, Response, abort, jsonify, render_template, request, send_file, send_from_directory
 
-# HIER SIND DIE NEUEN IMPORTS
 from server.access_point import create_ap, generate_ap_credentials, stop_ap
 from server.camera import capture_image
-from server.config import AP_IP, HOST, PHOTO_DIR, PORT, REVIEW_SECONDS, SHARE_MODE
+from server.config import (
+    ALLOW_REMOTE_CONTROL,
+    AP_IP,
+    HOST,
+    PHOTO_DIR,
+    PORT,
+    QR_TIMEOUT_SECONDS,
+    REVIEW_SECONDS,
+    SHARE_MODE,
+)
 from server.nextcloud_client import process_nextcloud_upload
+from server.previews import get_or_create_preview, warm_preview_async
 from server.serial_reader import SerialReader
 
 logging.basicConfig(
@@ -29,17 +38,46 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# HIER WIRD 'app' DEFINIERT (Das hatte gefehlt!)
 app = Flask(__name__)
+# Static assets ändern sich nur bei Deployments – aggressives Browser-Caching
+# spart dem Pi 3 bei jedem Guest-Request Disk-I/O und CPU.
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 3600
 
 # Thread-safe queue for pushing events to SSE clients
 event_queue: queue.Queue = queue.Queue()
+
+# ── Security: control endpoints are localhost-only ───────────────────────
+#
+# Gäste, die mit dem Hotspot verbunden sind, dürfen nur die Download-Galerie
+# und die Fotos sehen. Alles andere (Kiosk-UI, Trigger, Session-Verwaltung,
+# SSE-Stream) ist dem lokalen Kiosk-Browser vorbehalten – sonst könnte jeder
+# Gast Fotos auslösen, Sessions beenden oder den Hotspot abschalten.
+
+PUBLIC_ENDPOINTS = {"download_gallery", "serve_photo", "serve_preview", "static", "status"}
+_LOCAL_ADDRESSES = ("127.0.0.1", "::1", "::ffff:127.0.0.1")
+
+
+@app.before_request
+def _restrict_control_endpoints():
+    if ALLOW_REMOTE_CONTROL:
+        return None
+    if request.endpoint in PUBLIC_ENDPOINTS:
+        return None
+    if request.remote_addr in _LOCAL_ADDRESSES:
+        return None
+    abort(403)
+
 
 # ── Session tracking ──────────────────────────────────────────────────────
 
 _session_lock = Lock()
 _session_photos: list[str] = []  # filenames captured in the current session
 _last_finished_session_photos: list[str] = []
+
+# Debounce für den WebUI-Trigger: solange ein Countdown läuft, werden
+# weitere Trigger ignoriert (verhindert doppelte Captures).
+_trigger_lock = Lock()
+_trigger_pending = False
 
 # ── Serial event handler ─────────────────────────────────────────────────
 
@@ -54,6 +92,9 @@ def _on_serial_message(message: str) -> None:
             filename = os.path.basename(filepath)
             with _session_lock:
                 _session_photos.append(filename)
+            # Preview im Hintergrund vorberechnen, damit der Review-Screen
+            # sie sofort bekommt.
+            warm_preview_async(filename)
             event_queue.put({
                 "event": "photo_taken",
                 "data": {"filename": filename},
@@ -73,7 +114,11 @@ def _on_serial_message(message: str) -> None:
 @app.route("/")
 def index():
     """Serve the main kiosk UI."""
-    return render_template("index.html", review_seconds=REVIEW_SECONDS)
+    return render_template(
+        "index.html",
+        review_seconds=REVIEW_SECONDS,
+        qr_timeout_seconds=QR_TIMEOUT_SECONDS,
+    )
 
 
 @app.route("/events")
@@ -95,8 +140,17 @@ def events():
 
 @app.route("/photos/<path:filename>")
 def serve_photo(filename):
-    """Serve a captured photo from the photo directory."""
+    """Serve a captured photo (full resolution) from the photo directory."""
     return send_from_directory(PHOTO_DIR, filename)
+
+
+@app.route("/photos/preview/<filename>")
+def serve_preview(filename):
+    """Serve a downscaled, cached preview – much lighter for the Pi 3 browser."""
+    path = get_or_create_preview(filename)
+    if path is None:
+        abort(404)
+    return send_file(path, mimetype="image/jpeg")
 
 
 @app.route("/status")
@@ -105,26 +159,29 @@ def status():
     return jsonify({"status": "ok"})
 
 
+def _make_qr_data_uri(payload: str) -> str:
+    """Generate a QR code and return it as a base64 PNG data URI."""
+    qr = qrcode.QRCode(border=2, box_size=8)
+    qr.add_data(payload)
+    qr.make(fit=True)
+    img = qr.make_image()
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    encoded = base64.b64encode(buf.getvalue()).decode("ascii")
+    return f"data:image/png;base64,{encoded}"
+
+
 def _make_wifi_qr(ssid: str, password: str) -> str:
     """Generate a WiFi QR code and return it as a base64 PNG data URI."""
-    wifi_string = f"WIFI:T:WPA;S:{ssid};P:{password};;"
-    img = qrcode.make(wifi_string)
-    buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    encoded = base64.b64encode(buf.getvalue()).decode("ascii")
-    return f"data:image/png;base64,{encoded}"
+    # Sonderzeichen in SSID/Passwort müssen laut WiFi-QR-Spec escaped werden.
+    def esc(value: str) -> str:
+        for ch in ("\\", ";", ",", ":", '"'):
+            value = value.replace(ch, "\\" + ch)
+        return value
+
+    return _make_qr_data_uri(f"WIFI:T:WPA;S:{esc(ssid)};P:{esc(password)};;")
 
 
-def _make_text_qr(text: str) -> str:
-    """Generate a text QR code and return it as a base64 PNG data URI."""
-    img = qrcode.make(text)
-    buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    encoded = base64.b64encode(buf.getvalue()).decode("ascii")
-    return f"data:image/png;base64,{encoded}"
-
-
-# HIER IST DIE NEUE ROUTE FÜR NEXTCLOUD / HOTSPOT
 @app.route("/session/finish", methods=["POST"])
 def session_finish():
     """Finalise the current session, start an AP/Nextcloud upload, and return QR code data."""
@@ -134,66 +191,78 @@ def session_finish():
         _last_finished_session_photos.clear()
         _last_finished_session_photos.extend(photos)
 
-    if SHARE_MODE == "nextcloud":
-        # NEXTCLOUD MODUS
-        share_url = process_nextcloud_upload(photos)
-        
-        # Falls Nextcloud nicht erreichbar war, Fallback auf Hotspot
-        if not share_url:
-            logger.error("Nextcloud Share URL konnte nicht generiert werden!")
-            return jsonify({"error": "Cloud upload failed"}), 500
+    if not photos:
+        return jsonify({"error": "Keine Fotos in dieser Session"}), 400
 
-        download_qr_data_uri = _make_text_qr(share_url)
+    if SHARE_MODE == "nextcloud":
+        share_url = process_nextcloud_upload(photos)
+
+        if not share_url:
+            # Fotos zurück in die Session legen, damit nichts verloren geht.
+            with _session_lock:
+                _session_photos.extend(photos)
+            logger.error("Nextcloud Share URL konnte nicht generiert werden!")
+            return jsonify({"error": "Cloud-Upload fehlgeschlagen – bitte erneut versuchen"}), 503
+
         logger.info("Session finished: %d photo(s), Nextcloud URL=%s", len(photos), share_url)
-        
         return jsonify({
             "share_mode": "nextcloud",
             "photos": photos,
             "download_url": share_url,
-            "download_qr": download_qr_data_uri,
+            "download_qr": _make_qr_data_uri(share_url),
         })
-        
-    else:
-        # HOTSPOT MODUS (Altes Verhalten)
-        ssid, password = generate_ap_credentials()
-        wifi_qr_data_uri = _make_wifi_qr(ssid, password)
-        download_url = f"http://{AP_IP}:{PORT}/download"
-        download_qr_data_uri = _make_text_qr(download_url)
 
-        # Start the AP in a background thread; non-daemon so shutdown waits for it.
-        Thread(target=create_ap, args=(ssid, password)).start()
+    # HOTSPOT MODUS
+    ssid, password = generate_ap_credentials()
+    download_url = f"http://{AP_IP}:{PORT}/download"
 
-        logger.info("Session finished: %d photo(s), AP SSID=%s", len(photos), ssid)
-        return jsonify({
-            "share_mode": "hotspot",
-            "photos": photos,
-            "ssid": ssid,
-            "password": password,
-            "download_url": download_url,
-            "wifi_qr": wifi_qr_data_uri,
-            "download_qr": download_qr_data_uri,
-        })
+    # AP synchron im Request starten wäre zu langsam – Hintergrund reicht,
+    # die Gäste brauchen ein paar Sekunden zum Scannen.
+    Thread(target=create_ap, args=(ssid, password), daemon=True).start()
+
+    logger.info("Session finished: %d photo(s), AP SSID=%s", len(photos), ssid)
+    return jsonify({
+        "share_mode": "hotspot",
+        "photos": photos,
+        "ssid": ssid,
+        "password": password,
+        "download_url": download_url,
+        "wifi_qr": _make_wifi_qr(ssid, password),
+        "download_qr": _make_qr_data_uri(download_url),
+    })
 
 
 @app.route("/session/stop-ap", methods=["POST"])
 def session_stop_ap():
-    """Tear down the temporary Access Point."""
-    Thread(target=stop_ap).start()
+    """Tear down the temporary Access Point (profile is kept for reuse)."""
+    Thread(target=stop_ap, daemon=True).start()
     return jsonify({"status": "stopping"})
+
 
 @app.route("/trigger", methods=["POST"])
 def trigger():
     """Simuliert den physischen Button aus der WebUI heraus."""
-    # Sende das Button-Pressed Event (Startet den Countdown im Browser)
+    global _trigger_pending
+    with _trigger_lock:
+        if _trigger_pending:
+            return jsonify({"status": "already_running"}), 409
+        _trigger_pending = True
+
     event_queue.put({"event": "button_pressed"})
-    
+
     # Warte 8 Sekunden (wie der Arduino es tun würde) und feuere dann das Foto
     def trigger_photo():
-        _on_serial_message("countdown_complete")
+        global _trigger_pending
+        try:
+            _on_serial_message("countdown_complete")
+        finally:
+            with _trigger_lock:
+                _trigger_pending = False
 
     Timer(8.0, trigger_photo).start()
-    
+
     return jsonify({"status": "triggered"})
+
 
 @app.route("/download")
 def download_gallery():
