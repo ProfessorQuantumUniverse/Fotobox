@@ -7,8 +7,10 @@
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
+  <!-- Blitz-Overlay (wird beim Auslösen kurz eingeblendet) -->
   <div id="flash-overlay"></div>
 
+  <!-- Toast-Benachrichtigung (Ethernet / Auto-Update) -->
   <div id="toast" class="toast" role="status" aria-live="polite">
     <div class="toast-row">
       <div class="toast-icon" id="toast-icon"></div>
@@ -21,6 +23,7 @@
     <div class="toast-progress"><div class="toast-progress-bar" id="toast-progress-bar"></div></div>
   </div>
 
+  <!-- Idle screen -->
   <div id="screen-idle" class="screen active">
     <div class="idle-content">
       <div class="idle-ring" id="trigger-btn" role="button" aria-label="Foto auslösen">
@@ -37,6 +40,7 @@
     </div>
   </div>
 
+  <!-- Countdown screen -->
   <div id="screen-countdown" class="screen">
     <div class="countdown-content">
       <p class="countdown-label">Bereit machen &hellip;</p>
@@ -45,6 +49,7 @@
     </div>
   </div>
 
+  <!-- Review screen (show captured photo + action buttons) -->
   <div id="screen-review" class="screen">
     <div class="review-content">
       <div class="review-photo-slot">
@@ -76,6 +81,7 @@
     </div>
   </div>
 
+  <!-- QR code screen -->
   <div id="screen-qr" class="screen">
     <div class="qr-content">
       <h2>Deine Fotos</h2>
@@ -109,6 +115,24 @@
     </div>
   </div>
 
+  <!-- Shutdown-Menü (5× schnell den Knopf drücken) -->
+  <div id="screen-shutdown" class="screen">
+    <div class="shutdown-content">
+      <svg class="shutdown-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 3v9" />
+        <path d="M6.6 6.6a8 8 0 1 0 10.8 0" />
+      </svg>
+      <h2 class="shutdown-title">Fotobox ausschalten?</h2>
+      <p class="shutdown-hint">Alle Dienste werden gestoppt.</p>
+      <div class="shutdown-buttons">
+        <button id="btn-shutdown-cancel" class="btn btn-outline">Abbrechen</button>
+        <button id="btn-shutdown-confirm" class="btn btn-solid">Herunterfahren</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error overlay -->
   <div id="screen-error" class="screen">
     <div class="error-content">
       <div class="error-icon">!</div>

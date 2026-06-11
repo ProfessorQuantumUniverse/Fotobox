@@ -225,10 +225,10 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 /* Fester Bereich für Loader-Canvas und Foto-Frame (beide liegen übereinander) */
 .review-photo-slot {
   position: relative;
-  width: calc(100vw - 6rem);
-  max-width: 620px;
+  width: calc(100vw - 4rem);
+  max-width: 700px;
   /* Höhe: 3:2-Ratio, aber maximal so viel, dass Buttons + Padding noch passen */
-  max-height: calc(100vh - 180px);
+  max-height: calc(100vh - 170px);
   aspect-ratio: 3 / 2;
   flex-shrink: 0;
   background: #000;
@@ -348,6 +348,41 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
   50%      { transform: scale(1.1); opacity: 1; }
 }
 
+/* ── Shutdown-Menü ──────────────────────────────── */
+.shutdown-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.4rem;
+  padding: 2rem;
+  text-align: center;
+}
+
+.shutdown-icon {
+  width: 84px;
+  height: 84px;
+  color: var(--fg);
+}
+
+.shutdown-title {
+  font-size: 2rem;
+  font-weight: 300;
+  letter-spacing: 0.12rem;
+}
+
+.shutdown-hint {
+  color: var(--fg-dim);
+  font-weight: 300;
+  font-size: 1.15rem;
+}
+
+.shutdown-buttons {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: center;
+  margin-top: 0.6rem;
+}
+
 /* Hinweis auf dem QR-Screen (ersetzt den früheren Button). */
 .qr-newsession-hint {
   color: var(--fg-dim);
@@ -358,15 +393,28 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 
 /* Weißer Rahmen wie ein Print – erscheint zeitgleich mit dem Foto */
 .photo-frame {
+  position: absolute;
+  inset: 0;
   background: var(--fg);
-  padding: 12px 12px 18px;
+  /* Dünnerer Print-Rand → das Foto selbst wird größer. */
+  padding: 6px 6px 9px;
   line-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.55s ease;
+}
+
+.photo-frame.loaded {
+  opacity: 1;
 }
 
 .photo-frame img {
-  max-width: calc(100vw - 6rem);
-  max-height: 68vh;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
+  display: block;
 }
 
 .review-buttons {
@@ -729,4 +777,9 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
   .hint { margin-top: 0.8rem; font-size: 1.2rem; }
   .idle-ring { width: 130px; height: 130px; }
   .idle-camera { width: 64px; height: 64px; }
+
+  .shutdown-content { gap: 0.9rem; padding: 1rem; }
+  .shutdown-icon { width: 60px; height: 60px; }
+  .shutdown-title { font-size: 1.5rem; }
+  .shutdown-hint { font-size: 1rem; }
 }

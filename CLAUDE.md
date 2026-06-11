@@ -78,6 +78,11 @@ The system is a Flask web app that runs on a Raspberry Pi 3 and drives a kiosk d
 | `FOTOBOX_REVIEW_SECONDS` | `30` | Auto-reset of the review screen (0 = off) |
 | `FOTOBOX_QR_TIMEOUT_SECONDS` | `120` | Auto-reset of the QR screen (0 = off) |
 | `FOTOBOX_PREVIEW_MAX_SIZE` | `1280` | Max edge length of preview images |
+| `FOTOBOX_USB_BACKUP` | `1` | Copy every captured photo to a mounted USB stick (0 = off) |
+| `FOTOBOX_USB_MOUNT_ROOTS` | `/media:/mnt` | Colon-separated roots scanned for a mounted stick |
+| `FOTOBOX_USB_BACKUP_SUBDIR` | `Fotobox` | Target folder on the stick |
+
+**Shutdown & power resilience:** Pressing the physical button **5× quickly** (within 4 s) during the countdown opens a shutdown menu (`screen-shutdown`); confirming hits `POST /system/shutdown` (localhost-only) which tears down the AP, `sync`s, and runs `sudo shutdown` (passwordless sudoers rule installed by `setup.sh`). For unclean power-offs (yanking the plug), enable the read-only overlay filesystem via `raspi-config` so the SD card/services survive — `setup.sh` prints the steps. A frontend capture watchdog returns the UI to idle if a capture hangs without producing a photo or error.
 
 ## Dev without hardware
 

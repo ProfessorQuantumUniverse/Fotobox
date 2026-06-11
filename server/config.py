@@ -55,6 +55,18 @@ ETH_POLL_INTERVAL = float(os.environ.get("FOTOBOX_ETH_POLL_INTERVAL", "10"))
 # Toast erscheint nur bei einem Wechsel (Laden beginnt/endet). 0 = aus.
 CAMERA_POWER_POLL = float(os.environ.get("FOTOBOX_CAMERA_POWER_POLL", "30"))
 
+# --- USB-Stick-Backup ---
+# Steckt ein USB-Stick, wird jedes Foto (auch abgebrochene Sessions) zusätzlich
+# darauf gesichert. 0 = aus.
+USB_BACKUP = os.environ.get("FOTOBOX_USB_BACKUP", "1") == "1"
+# Wo nach gemounteten Sticks gesucht wird (Raspberry Pi OS automountet unter
+# /media/<user>/<label>).
+USB_MOUNT_ROOTS = tuple(
+    p for p in os.environ.get("FOTOBOX_USB_MOUNT_ROOTS", "/media:/mnt").split(":") if p
+)
+# Unterordner auf dem Stick, in den kopiert wird.
+USB_BACKUP_SUBDIR = os.environ.get("FOTOBOX_USB_BACKUP_SUBDIR", "Fotobox")
+
 # --- Access Point ---
 AP_IFACE = os.environ.get("FOTOBOX_AP_IFACE", "wlan0")
 AP_CONNECTION_NAME = os.environ.get("FOTOBOX_AP_CONNECTION_NAME", "fotobox-ap")

@@ -157,6 +157,34 @@ class TestSessionFinishHotspot:
         assert json.loads(resp.data)["status"] == "stopping"
 
 
+class TestSystemShutdown:
+    """The kiosk shutdown menu powers the Pi off cleanly."""
+
+    def test_shutdown_triggers_command(self, client):
+        # Den eigentlichen Shutdown-Thread synchron ausführen und stop_ap +
+        # shutdown-Aufruf prüfen – ohne den Rechner wirklich auszuschalten.
+        def run_inline(target, daemon=False):
+            class _T:
+                def start(self_inner):
+                    target()
+            return _T()
+
+        with patch("server.app.Thread", side_effect=run_inline), \
+             patch("server.app.stop_ap") as mock_stop, \
+             patch("server.app.subprocess.run") as mock_run:
+            resp = client.post("/system/shutdown")
+
+        assert resp.status_code == 200
+        assert json.loads(resp.data)["status"] == "shutting_down"
+        mock_stop.assert_called_once()
+        # Letzter Aufruf muss der shutdown-Befehl sein.
+        assert mock_run.call_args_list[-1].args[0][:2] == ["sudo", "shutdown"]
+
+    def test_shutdown_is_localhost_only(self, client):
+        resp = client.post("/system/shutdown", environ_base={"REMOTE_ADDR": "10.42.0.55"})
+        assert resp.status_code == 403
+
+
 
 class TestTrigger:
     """Tests for the WebUI trigger endpoint."""

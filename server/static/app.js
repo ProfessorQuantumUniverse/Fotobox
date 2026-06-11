@@ -11,6 +11,7 @@
   var screenReview    = document.getElementById("screen-review");
   var screenQr        = document.getElementById("screen-qr");
   var screenError     = document.getElementById("screen-error");
+  var screenShutdown  = document.getElementById("screen-shutdown");
   var reviewPhoto     = document.getElementById("review-photo");
   var errorMessage    = document.getElementById("error-message");
   var countdownDots   = document.getElementById("countdown-dots");
@@ -31,6 +32,10 @@
   var btnQrNext     = document.getElementById("btn-qr-next");
   var btnQrBack     = document.getElementById("btn-qr-back");
 
+  // Shutdown-Menü
+  var btnShutdownCancel  = document.getElementById("btn-shutdown-cancel");
+  var btnShutdownConfirm = document.getElementById("btn-shutdown-confirm");
+
   function showQrPage(id) {
     var pages = document.querySelectorAll(".qr-page");
     for (var i = 0; i < pages.length; i++) {
@@ -48,6 +53,14 @@
   var countdownInterval = null;
   var reviewTimeout = null;
   var qrTimeout = null;
+  var captureWatchdog = null;   // Sicherheits-Timeout: hängt die Aufnahme, zurück zur Homepage
+  var loaderShownAt = 0;        // Zeitstempel, ab dem die Ladeanimation läuft
+
+  // Dauer, die die Aufnahme maximal brauchen darf, bevor die Box von selbst
+  // zur Homepage zurückkehrt (Countdown + großzügige Kamera-Reserve).
+  var CAPTURE_TIMEOUT_MS = (COUNTDOWN_SECONDS + 35) * 1000;
+  // Mindestzeit, die die Ladeanimation zu sehen ist (sonst „blitzt“ sie nur).
+  var MIN_LOADER_MS = 650;
 
   // Toast elements
   var toast          = document.getElementById("toast");
@@ -74,15 +87,20 @@
     if (qrTimeout)         { clearTimeout(qrTimeout);          qrTimeout = null; }
   }
 
+  function clearCaptureWatchdog() {
+    if (captureWatchdog) { clearTimeout(captureWatchdog); captureWatchdog = null; }
+  }
+
   function showScreen(screen) {
     clearTimers();
-    [screenIdle, screenCountdown, screenReview, screenQr, screenError].forEach(function (s) {
+    [screenIdle, screenCountdown, screenReview, screenQr, screenError, screenShutdown].forEach(function (s) {
       s.classList.remove("active");
     });
     screen.classList.add("active");
   }
 
   function returnToIdle() {
+    clearCaptureWatchdog();
     showScreen(screenIdle);
   }
 
@@ -190,6 +208,49 @@
     }, REVIEW_SECONDS * 1000);
   }
 
+  // ── Shutdown-Menü (5× schnell den Knopf drücken) ──────
+  // Fünf Knopfdrücke in einem Zeitfenster öffnen ein Menü, das einen sauberen
+  // Shutdown anbietet. „Mittel-schnell“ → großzügiges Fenster (kein Hetzen).
+
+  var SHUTDOWN_TAPS = 5;
+  var SHUTDOWN_WINDOW_MS = 4000;
+  var pressTimestamps = [];
+  var shutdownActive = false;
+
+  function registerPressBurst() {
+    var now = Date.now();
+    pressTimestamps.push(now);
+    // Nur Drücke innerhalb des Fensters behalten.
+    pressTimestamps = pressTimestamps.filter(function (t) { return now - t <= SHUTDOWN_WINDOW_MS; });
+    return pressTimestamps.length >= SHUTDOWN_TAPS;
+  }
+
+  function openShutdownMenu() {
+    shutdownActive = true;
+    pressTimestamps = [];
+    clearCaptureWatchdog();
+    // Alles andere beenden: laufenden Hotspot abbauen (kein Foto, keine Session).
+    fetch("/session/stop-ap", { method: "POST" })
+      .catch(function (err) { console.error("stop-ap error:", err); });
+    showScreen(screenShutdown);
+  }
+
+  function closeShutdownMenu() {
+    shutdownActive = false;
+    returnToIdle();
+  }
+
+  if (btnShutdownCancel) {
+    btnShutdownCancel.addEventListener("click", closeShutdownMenu);
+  }
+  if (btnShutdownConfirm) {
+    btnShutdownConfirm.addEventListener("click", function () {
+      btnShutdownConfirm.disabled = true;
+      fetch("/system/shutdown", { method: "POST" })
+        .catch(function (err) { console.error("shutdown error:", err); });
+    });
+  }
+
   // ── SSE Connection ──────────────────────────────────
 
   function connectSSE() {
@@ -205,7 +266,14 @@
 
       switch (msg.event) {
         case "button_pressed":
-          // Der physische Knopf startet IMMER eine neue Session sofort.
+          // 5× schnell hintereinander → Shutdown-Menü (statt neuer Session).
+          if (registerPressBurst()) {
+            openShutdownMenu();
+            break;
+          }
+          // Steht das Menü schon offen, ignorieren wir weitere Drücke.
+          if (shutdownActive) { break; }
+          // Der physische Knopf startet sonst IMMER eine neue Session sofort.
           // Auf dem QR-Screen heißt das: alten Hotspot abbauen, dann direkt
           // in den Countdown (die Server-Session wurde bei "Fertig" geleert).
           if (screenQr.classList.contains("active")) {
@@ -216,10 +284,16 @@
           break;
 
         case "countdown_complete":
+          if (shutdownActive) { break; }  // Menü offen → keine Aufnahme zeigen
           triggerFlash();
+          // Sicherheits-Watchdog: kommt kein Foto/Fehler, zurück zur Homepage.
+          clearCaptureWatchdog();
+          captureWatchdog = setTimeout(returnToIdle, CAPTURE_TIMEOUT_MS);
           break;
 
         case "photo_taken":
+          if (shutdownActive) { break; }  // Menü offen → Foto verwerfen (Datei ist gesichert)
+          clearCaptureWatchdog();
           (function (filename) {
             var loader     = document.getElementById("review-loader");
             var photoFrame = document.getElementById("photo-frame");
@@ -230,12 +304,17 @@
             reviewPhoto.src = "";
 
             showScreen(screenReview);
+            loaderShownAt = Date.now();
 
             function reveal() {
-              // Foto + Rahmen erscheinen gemeinsam, Loader blendet aus.
-              loader.classList.add("done");
-              photoFrame.classList.add("loaded");
-              startReviewTimer();
+              // Foto + Rahmen erscheinen gemeinsam, Loader blendet aus –
+              // aber erst, wenn die Animation lange genug zu sehen war.
+              var wait = Math.max(0, MIN_LOADER_MS - (Date.now() - loaderShownAt));
+              setTimeout(function () {
+                loader.classList.add("done");
+                photoFrame.classList.add("loaded");
+                startReviewTimer();
+              }, wait);
             }
             reviewPhoto.onload = reveal;
             reviewPhoto.onerror = reveal;
@@ -244,6 +323,8 @@
           break;
 
         case "error":
+          clearCaptureWatchdog();
+          if (shutdownActive) { break; }
           errorMessage.textContent = msg.data.message || "Unbekannter Fehler";
           showScreen(screenError);
           setTimeout(returnToIdle, 5000);
@@ -324,9 +405,15 @@
 
           showQrPage("box-wifi");  // immer mit Schritt 1 starten
           showScreen(screenQr);
-          if (window.QR_TIMEOUT_SECONDS && QR_TIMEOUT_SECONDS > 0) {
-            qrTimeout = setTimeout(returnToIdle, QR_TIMEOUT_SECONDS * 1000);
-          }
+          // Auto-Rückkehr zur Homepage – egal auf welcher Folie. Dabei wird
+          // der Hotspot abgebaut. Fällt die Konfig auf 0/leer, greift ein
+          // sicherer Default, damit der QR-Screen NIE dauerhaft hängen bleibt.
+          var qrSecs = (window.QR_TIMEOUT_SECONDS && QR_TIMEOUT_SECONDS > 0) ? QR_TIMEOUT_SECONDS : 120;
+          qrTimeout = setTimeout(function () {
+            fetch("/session/stop-ap", { method: "POST" })
+              .catch(function (err) { console.error("stop-ap error:", err); });
+            returnToIdle();
+          }, qrSecs * 1000);
         })
         .catch(function (err) {
           console.error("session/finish error:", err);
