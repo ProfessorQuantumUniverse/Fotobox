@@ -29,10 +29,8 @@ from server.config import (
     PORT,
     QR_TIMEOUT_SECONDS,
     REVIEW_SECONDS,
-    SHARE_MODE,
 )
 from server.network_monitor import EthernetMonitor
-from server.nextcloud_client import process_nextcloud_upload
 from server.previews import get_or_create_preview, warm_preview_async
 from server.serial_reader import SerialReader
 from server.updater import cancel_update, current_revision, start_update_async
@@ -225,25 +223,6 @@ def session_finish():
     if not photos:
         return jsonify({"error": "Keine Fotos in dieser Session"}), 400
 
-    if SHARE_MODE == "nextcloud":
-        share_url = process_nextcloud_upload(photos)
-
-        if not share_url:
-            # Fotos zurück in die Session legen, damit nichts verloren geht.
-            with _session_lock:
-                _session_photos.extend(photos)
-            logger.error("Nextcloud Share URL konnte nicht generiert werden!")
-            return jsonify({"error": "Cloud-Upload fehlgeschlagen – bitte erneut versuchen"}), 503
-
-        logger.info("Session finished: %d photo(s), Nextcloud URL=%s", len(photos), share_url)
-        return jsonify({
-            "share_mode": "nextcloud",
-            "photos": photos,
-            "download_url": share_url,
-            "download_qr": _make_qr_data_uri(share_url),
-        })
-
-    # HOTSPOT MODUS
     ssid, password = generate_ap_credentials()
     download_url = f"http://{AP_IP}:{PORT}/download"
 

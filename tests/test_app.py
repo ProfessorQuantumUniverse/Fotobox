@@ -113,8 +113,7 @@ class TestSessionFinishHotspot:
     """Tests for /session/finish in hotspot mode."""
 
     def _finish(self, client):
-        with patch("server.app.SHARE_MODE", "hotspot"), \
-             patch("server.app.create_ap", return_value=True) as mock_create:
+        with patch("server.app.create_ap", return_value=True) as mock_create:
             resp = client.post("/session/finish")
         return resp, mock_create
 
@@ -155,38 +154,6 @@ class TestSessionFinishHotspot:
         assert resp.status_code == 200
         assert json.loads(resp.data)["status"] == "stopping"
 
-
-class TestSessionFinishNextcloud:
-    """Tests for /session/finish in nextcloud mode."""
-
-    def test_success_returns_share_link(self, client):
-        with app_module._session_lock:
-            app_module._session_photos.append("foto_nc.jpg")
-
-        with patch("server.app.SHARE_MODE", "nextcloud"), \
-             patch("server.app.process_nextcloud_upload",
-                   return_value="https://cloud.example/s/abc123") as mock_upload:
-            resp = client.post("/session/finish")
-
-        assert resp.status_code == 200
-        data = json.loads(resp.data)
-        assert data["share_mode"] == "nextcloud"
-        assert data["download_url"] == "https://cloud.example/s/abc123"
-        assert data["download_qr"].startswith("data:image/png;base64,")
-        mock_upload.assert_called_once_with(["foto_nc.jpg"])
-
-    def test_failure_returns_503_and_restores_session(self, client):
-        with app_module._session_lock:
-            app_module._session_photos.append("foto_nc.jpg")
-
-        with patch("server.app.SHARE_MODE", "nextcloud"), \
-             patch("server.app.process_nextcloud_upload", return_value=""):
-            resp = client.post("/session/finish")
-
-        assert resp.status_code == 503
-        # Fotos dürfen bei einem Cloud-Fehler nicht verloren gehen
-        with app_module._session_lock:
-            assert app_module._session_photos == ["foto_nc.jpg"]
 
 
 class TestTrigger:
