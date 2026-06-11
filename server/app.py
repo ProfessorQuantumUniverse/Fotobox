@@ -17,7 +17,7 @@ import qrcode
 from flask import Flask, Response, abort, jsonify, render_template, request, send_file, send_from_directory
 
 from server.access_point import create_ap, generate_ap_credentials, stop_ap
-from server.camera import capture_image
+from server.camera import capture_image, disable_display
 from server.config import (
     ALLOW_REMOTE_CONTROL,
     AP_IP,
@@ -341,6 +341,7 @@ if __name__ == "__main__":
     create_app()
     start_serial()
     start_ethernet_monitor()
+    Thread(target=disable_display, daemon=True).start()
     logger.info("Fotobox running version %s", current_revision())
     try:
         app.run(host=HOST, port=PORT, debug=False, threaded=True)
