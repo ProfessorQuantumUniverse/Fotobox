@@ -29,6 +29,13 @@
   var qrPassword    = document.getElementById("qr-password");
   var qrUrl         = document.getElementById("qr-url");
   var btnNewSession = document.getElementById("btn-new-session");
+  
+  // NEU: Elemente für den 2-Schritt-QR-Prozess
+  var boxWifi             = document.getElementById("box-wifi");
+  var boxDownload         = document.getElementById("box-download");
+  var btnQrNext           = document.getElementById("btn-qr-next");
+  var instructionDownload = document.getElementById("instruction-download");
+  var stepNumberDownload  = document.getElementById("step-number-download");
 
   var countdownInterval = null;
   var reviewTimeout = null;
@@ -62,9 +69,9 @@
   function showScreen(screen) {
     clearTimers();
     [screenIdle, screenCountdown, screenReview, screenQr, screenError].forEach(function (s) {
-      s.classList.remove("active");
+      if(s) s.classList.remove("active");
     });
-    screen.classList.add("active");
+    if(screen) screen.classList.add("active");
   }
 
   function returnToIdle() {
@@ -74,7 +81,6 @@
   // ── Toast ─────────────────────────────────────────────
 
   function showToast(opts) {
-    // opts: { icon, title, message, percent (number|null), variant, progress (bool), autohide (ms|0) }
     if (toastHideTimer) { clearTimeout(toastHideTimer); toastHideTimer = null; }
 
     toast.classList.remove("toast-error");
@@ -116,13 +122,11 @@
 
   function triggerFlash() {
     flashOverlay.classList.remove("flash");
-    // Reflow erzwingen, damit die Animation erneut startet
     void flashOverlay.offsetWidth;
     flashOverlay.classList.add("flash");
   }
 
   // ── Countdown (Zahl + Punkte) ─────────────────────────
-  // Wichtig: erst showScreen() (löscht alte Timer), dann das Intervall setzen.
 
   function startCountdown() {
     var remaining = COUNTDOWN_SECONDS;
@@ -247,7 +251,8 @@
   // ── Review-Auto-Reset ─────────────────────────────────
 
   function startReviewTimer() {
-    if (!reviewTimerBar || !window.REVIEW_SECONDS || REVIEW_SECONDS <= 0) { return; }
+    // FIX: Überprüfung auf typeof REVIEW_SECONDS statt window.REVIEW_SECONDS
+    if (!reviewTimerBar || typeof REVIEW_SECONDS === 'undefined' || REVIEW_SECONDS <= 0) { return; }
     reviewTimerBar.classList.remove("running");
     reviewTimerBar.style.transitionDuration = "0s";
     void reviewTimerBar.offsetWidth;
@@ -255,7 +260,6 @@
     reviewTimerBar.classList.add("running");
 
     reviewTimeout = setTimeout(function () {
-      // Foto bleibt in der Session – die Box geht nur zurück in den Idle-Modus.
       returnToIdle();
     }, REVIEW_SECONDS * 1000);
   }
@@ -284,11 +288,13 @@
 
         case "photo_taken":
           (function (filename) {
-            var loader    = document.getElementById("review-loader");
-            var photoFrame = document.getElementById("photo-frame");
-            // Zustände zurücksetzen
-            loader.classList.remove("done");
-            photoFrame.classList.remove("loaded");
+            var loader     = document.getElementById("review-loader");
+            var photoFrame = document.querySelector(".photo-frame");
+            
+            // Zustände zurücksetzen, falls Loader-Div existiert (Optionales Feature)
+            if(loader) loader.classList.remove("done");
+            if(photoFrame) photoFrame.classList.remove("loaded");
+            
             reviewPhoto.onload = null;
             reviewPhoto.src = "";
 
@@ -297,26 +303,27 @@
             var cancelled = false;
             var stopAnim  = null;
 
-            // Canvas nach dem ersten Layout-Pass befüllen
-            requestAnimationFrame(function () {
-              if (cancelled) return;
-              loader.width  = loader.clientWidth  || 600;
-              loader.height = loader.clientHeight || 400;
-              stopAnim = startBallAnimation(loader);
-            });
+            if (loader) {
+              requestAnimationFrame(function () {
+                if (cancelled) return;
+                loader.width  = loader.clientWidth  || 600;
+                loader.height = loader.clientHeight || 400;
+                stopAnim = startBallAnimation(loader);
+              });
+            }
 
             reviewPhoto.onload = function () {
               cancelled = true;
               if (stopAnim) { stopAnim(); }
-              loader.classList.add("done");
-              photoFrame.classList.add("loaded");
+              if(loader) loader.classList.add("done");
+              if(photoFrame) photoFrame.classList.add("loaded");
               startReviewTimer();
             };
             reviewPhoto.onerror = function () {
               cancelled = true;
               if (stopAnim) { stopAnim(); }
-              loader.classList.add("done");
-              photoFrame.classList.add("loaded");
+              if(loader) loader.classList.add("done");
+              if(photoFrame) photoFrame.classList.add("loaded");
               startReviewTimer();
             };
             reviewPhoto.src = "/photos/preview/" + encodeURIComponent(filename);
@@ -329,59 +336,22 @@
           setTimeout(returnToIdle, 5000);
           break;
 
+        // --- SILENT AUTO-UPDATE ---
         case "ethernet_connected":
-          showToast({
-            icon: "link",
-            title: "LAN verbunden",
-            message: "Suche nach Updates …",
-            progress: false,
-            autohide: 0
-          });
-          break;
-
         case "ethernet_disconnected":
-          // Cable raus → laufendes Update wird serverseitig zurückgerollt.
-          showToast({
-            icon: "unlink",
-            title: "LAN getrennt",
-            message: "Vorherige Version bleibt aktiv",
-            variant: "error",
-            progress: false,
-            autohide: 4000
-          });
-          break;
-
         case "update_progress":
-          showToast({
-            icon: "spinner",
-            title: "Update läuft",
-            message: msg.data.message || "Lade herunter …",
-            percent: msg.data.percent,
-            progress: true,
-            autohide: 0
-          });
-          updateToastProgress(msg.data.percent, msg.data.message);
+          // Keine Toasts mehr, läuft absolut still im Hintergrund!
           break;
 
         case "update_done":
-          if (msg.data.success) {
-            updateToastProgress(100, msg.data.message);
+          // Zeige NUR DANN einen Toast, wenn es ERFOLGREICH war UND eine NEUE Version ist
+          if (msg.data.success && msg.data.message && msg.data.message !== "Bereits aktuell") {
             showToast({
               icon: "check",
-              title: "Update fertig",
-              message: msg.data.message || "Aktuell",
-              percent: 100,
-              progress: true,
-              autohide: 4500
-            });
-          } else {
-            showToast({
-              icon: "cross",
-              title: "Update fehlgeschlagen",
-              message: msg.data.message || "Bitte später erneut versuchen",
-              variant: "error",
+              title: "Update installiert",
+              message: msg.data.message,
               progress: false,
-              autohide: 6000
+              autohide: 5000
             });
           }
           break;
@@ -418,22 +388,36 @@
           });
         })
         .then(function (data) {
-          var boxWifi = document.getElementById("box-wifi");
-          var instructionDownload = document.getElementById("instruction-download");
-          var stepNumberDownload = document.getElementById("step-number-download");
-
-          // Hotspot: zwei Schritte untereinander (WLAN, dann Download)
-          boxWifi.style.display = "flex";
-          stepNumberDownload.textContent = "2";
-          instructionDownload.textContent = "Code scannen und Fotos herunterladen";
-          qrCodeImg.src = data.wifi_qr;
-          qrDownloadImg.src = data.download_qr;
-          qrSsid.textContent = data.ssid;
-          qrPassword.textContent = data.password;
-          qrUrl.textContent = data.download_url;
+          // Logik für den 2-Schritt QR Prozess (Tablet-freundlich, ohne Scrollen)
+          if (data.share_mode === "nextcloud") {
+            // Nextcloud hat nur einen QR-Code, also sofort Schritt 2 zeigen
+            if (boxWifi) boxWifi.style.display = "none";
+            if (boxDownload) boxDownload.style.display = "flex";
+            if (btnQrNext) btnQrNext.style.display = "none";
+            
+            if (stepNumberDownload) stepNumberDownload.textContent = "1";
+            if (instructionDownload) instructionDownload.textContent = "Code mit der Kamera-App scannen";
+            if (qrDownloadImg) qrDownloadImg.src = data.download_qr;
+            if (qrUrl) qrUrl.textContent = "";
+          } else {
+            // Hotspot hat 2 Codes: Zuerst NUR das WLAN anzeigen (Schritt 1)
+            if (boxWifi) boxWifi.style.display = "flex";
+            if (boxDownload) boxDownload.style.display = "none";
+            if (btnQrNext) btnQrNext.style.display = "inline-block"; // Weiter-Button anzeigen!
+            
+            if (stepNumberDownload) stepNumberDownload.textContent = "2";
+            if (instructionDownload) instructionDownload.textContent = "Code scannen und Fotos herunterladen";
+            if (qrCodeImg) qrCodeImg.src = data.wifi_qr;
+            if (qrDownloadImg) qrDownloadImg.src = data.download_qr;
+            if (qrSsid) qrSsid.textContent = data.ssid;
+            if (qrPassword) qrPassword.textContent = data.password;
+            if (qrUrl) qrUrl.textContent = data.download_url;
+          }
 
           showScreen(screenQr);
-          if (window.QR_TIMEOUT_SECONDS && QR_TIMEOUT_SECONDS > 0) {
+          
+          // FIX: QR-Timeout korrekt starten
+          if (typeof QR_TIMEOUT_SECONDS !== 'undefined' && QR_TIMEOUT_SECONDS > 0) {
             qrTimeout = setTimeout(returnToIdle, QR_TIMEOUT_SECONDS * 1000);
           }
         })
@@ -446,6 +430,33 @@
         .finally(function () {
           btnDone.disabled = false;
         });
+    });
+  }
+
+  // ── QR screen: Weiter Button ──────────────────────────
+
+  if (btnQrNext) {
+    btnQrNext.addEventListener("click", function () {
+      // Wenn man auf "Weiter" drückt: WLAN-Box ausblenden, Download-Box einblenden
+      if (boxWifi) boxWifi.style.display = "none";
+      btnQrNext.style.display = "none";
+      
+      if (boxDownload) {
+        boxDownload.style.display = "flex";
+        
+        // CSS Animation (step-in) neu triggern
+        boxDownload.classList.remove("qr-step");
+        void boxDownload.offsetWidth; 
+        boxDownload.classList.add("qr-step");
+      }
+      
+      // Optional: Timer zurücksetzen, damit Leute genug Zeit zum Scannen haben
+      if (qrTimeout) {
+        clearTimeout(qrTimeout);
+        if (typeof QR_TIMEOUT_SECONDS !== 'undefined' && QR_TIMEOUT_SECONDS > 0) {
+          qrTimeout = setTimeout(returnToIdle, QR_TIMEOUT_SECONDS * 1000);
+        }
+      }
     });
   }
 
