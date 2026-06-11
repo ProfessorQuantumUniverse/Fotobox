@@ -115,6 +115,23 @@
     </div>
   </div>
 
+  <!-- Shutdown-Menü (5× schnell den Knopf drücken) -->
+  <div id="screen-shutdown" class="screen">
+    <div class="shutdown-content">
+      <svg class="shutdown-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 3v9" />
+        <path d="M6.6 6.6a8 8 0 1 0 10.8 0" />
+      </svg>
+      <h2 class="shutdown-title">Fotobox ausschalten?</h2>
+      <p class="shutdown-hint">Alle Dienste werden gestoppt.</p>
+      <div class="shutdown-buttons">
+        <button id="btn-shutdown-cancel" class="btn btn-outline">Abbrechen</button>
+        <button id="btn-shutdown-confirm" class="btn btn-solid">Herunterfahren</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Error overlay -->
   <div id="screen-error" class="screen">
     <div class="error-content">
