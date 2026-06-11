@@ -21,6 +21,9 @@ from server.camera import capture_image
 from server.config import (
     ALLOW_REMOTE_CONTROL,
     AP_IP,
+    AUTO_UPDATE,
+    ETH_IFACE,
+    ETH_POLL_INTERVAL,
     HOST,
     PHOTO_DIR,
     PORT,
@@ -28,9 +31,11 @@ from server.config import (
     REVIEW_SECONDS,
     SHARE_MODE,
 )
+from server.network_monitor import EthernetMonitor
 from server.nextcloud_client import process_nextcloud_upload
 from server.previews import get_or_create_preview, warm_preview_async
 from server.serial_reader import SerialReader
+from server.updater import cancel_update, current_revision, start_update_async
 
 logging.basicConfig(
     level=logging.INFO,
@@ -108,6 +113,32 @@ def _on_serial_message(message: str) -> None:
 
     elif message == "button_pressed":
         event_queue.put({"event": "button_pressed"})
+
+# ── Ethernet auto-update ─────────────────────────────────────────────────
+
+def _emit_update_progress(percent: int, text: str) -> None:
+    event_queue.put({"event": "update_progress", "data": {"percent": percent, "message": text}})
+
+
+def _on_update_done(success: bool, message: str) -> None:
+    event_queue.put({
+        "event": "update_done",
+        "data": {"success": success, "message": message, "revision": current_revision()},
+    })
+
+
+def _on_ethernet_connect() -> None:
+    """Cable plugged in – announce it and pull the newest version."""
+    event_queue.put({"event": "ethernet_connected"})
+    if AUTO_UPDATE:
+        _emit_update_progress(0, "Update wird gestartet …")
+        start_update_async(_emit_update_progress, _on_update_done)
+
+
+def _on_ethernet_disconnect() -> None:
+    """Cable pulled out – announce it and roll back any partial update."""
+    cancel_update()
+    event_queue.put({"event": "ethernet_disconnected"})
 
 # ── Routes ─────────────────────────────────────────────────────────────
 
@@ -282,6 +313,7 @@ def download_gallery():
 # ── Startup ─────────────────────────────────────────────────────────────
 
 serial_reader: Optional[SerialReader] = None
+ethernet_monitor: Optional[EthernetMonitor] = None
 
 
 def start_serial() -> None:
@@ -293,6 +325,22 @@ def start_serial() -> None:
     except Exception as exc:
         logger.warning("Serial reader not available: %s (running without Arduino)", exc)
         serial_reader = None
+
+
+def start_ethernet_monitor() -> None:
+    """Watch the Ethernet cable for auto-update (non-fatal on failure)."""
+    global ethernet_monitor
+    try:
+        ethernet_monitor = EthernetMonitor(
+            iface=ETH_IFACE,
+            on_connect=_on_ethernet_connect,
+            on_disconnect=_on_ethernet_disconnect,
+            poll_interval=ETH_POLL_INTERVAL,
+        )
+        ethernet_monitor.start()
+    except Exception as exc:
+        logger.warning("Ethernet monitor not available: %s", exc)
+        ethernet_monitor = None
 
 
 def create_app():
@@ -313,8 +361,12 @@ def create_app():
 if __name__ == "__main__":
     create_app()
     start_serial()
+    start_ethernet_monitor()
+    logger.info("Fotobox running version %s", current_revision())
     try:
         app.run(host=HOST, port=PORT, debug=False, threaded=True)
     finally:
         if serial_reader is not None:
             serial_reader.stop()
+        if ethernet_monitor is not None:
+            ethernet_monitor.stop()
