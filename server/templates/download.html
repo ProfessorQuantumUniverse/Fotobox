@@ -3,28 +3,75 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Deine Fotos - Download</title>
+  <title>Fotobox – Deine Fotos</title>
   <style>
-    body { font-family: sans-serif; background: #111; color: white; text-align: center; padding: 20px; }
-    img { max-width: 100%; height: auto; border-radius: 8px; margin-bottom: 10px; }
-    .photo-card { background: #222; padding: 10px; margin-bottom: 20px; border-radius: 10px; }
-    .btn { display: inline-block; background: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; }
+    :root {
+      --bg: #000;
+      --fg: #fff;
+      --fg-dim: #9a9a9a;
+      --line: #2e2e2e;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      text-align: center;
+      padding: 24px 16px 48px;
+      -webkit-font-smoothing: antialiased;
+    }
+    h1 {
+      font-weight: 200;
+      letter-spacing: 0.5rem;
+      text-transform: uppercase;
+      font-size: 1.6rem;
+      margin-bottom: 0.5rem;
+    }
+    .subtitle {
+      color: var(--fg-dim);
+      font-weight: 300;
+      margin-bottom: 28px;
+    }
+    .photo-card {
+      border: 1px solid var(--line);
+      padding: 12px;
+      margin: 0 auto 24px;
+      max-width: 560px;
+    }
+    .photo-card img {
+      width: 100%;
+      height: auto;
+      display: block;
+      margin-bottom: 12px;
+    }
+    .btn {
+      display: inline-block;
+      background: var(--fg);
+      color: var(--bg);
+      padding: 12px 28px;
+      text-decoration: none;
+      font-weight: 500;
+      letter-spacing: 0.05rem;
+      border: 2px solid var(--fg);
+    }
+    .btn:active { opacity: 0.8; }
+    .empty { color: var(--fg-dim); margin-top: 48px; }
   </style>
 </head>
 <body>
-  <h1>Deine Fotos 📸</h1>
-  <p>Tippe auf „Download“ und speichere das Bild auf deinem Gerät.</p>
-  
+  <h1>Fotobox</h1>
+  <p class="subtitle">Tippe auf &bdquo;Herunterladen&ldquo;, um das Foto in voller Aufl&ouml;sung zu speichern.</p>
+
   {% if photos %}
     {% for photo in photos %}
       <div class="photo-card">
-        <img src="/photos/{{ photo }}" alt="Dein Foto">
-        <br>
-        <a href="/photos/{{ photo }}" class="btn" download>⬇️ Download</a>
+        <!-- Vorschau: klein und schnell. Der Download-Link liefert das Original. -->
+        <img src="/photos/preview/{{ photo }}" alt="Dein Foto" loading="lazy">
+        <a href="/photos/{{ photo }}" class="btn" download>Herunterladen</a>
       </div>
     {% endfor %}
   {% else %}
-    <p>Keine Fotos gefunden. Bitte eine neue Session starten.</p>
+    <p class="empty">Keine Fotos gefunden. Bitte eine neue Session starten.</p>
   {% endif %}
 </body>
 </html>

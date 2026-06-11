@@ -1,4 +1,16 @@
-/* === Fotobox – Kiosk UI Styles === */
+/* === Fotobox – Kiosk UI ===
+   Monochromes Schwarz-Weiß-Design.
+   Performance (Pi 3): Animationen ausschließlich über transform/opacity
+   (GPU-Compositing), keine Filter/Blur/Box-Shadow-Animationen. */
+
+:root {
+  --bg: #000000;
+  --fg: #ffffff;
+  --fg-dim: #9a9a9a;
+  --fg-faint: #4a4a4a;
+  --line: #2e2e2e;
+  --font: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
 
 * {
   margin: 0;
@@ -10,9 +22,11 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #111;
-  color: #fff;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  cursor: none; /* Kiosk: kein Mauszeiger */
 }
 
 /* ── Screens ─────────────────────────────────── */
@@ -25,12 +39,34 @@ html, body {
   justify-content: center;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.4s ease;
+  transform: translateY(12px);
+  transition: opacity 0.35s ease, transform 0.35s ease;
 }
 
 .screen.active {
   opacity: 1;
   pointer-events: auto;
+  transform: translateY(0);
+}
+
+/* ── Blitz-Overlay ───────────────────────────── */
+
+#flash-overlay {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 50;
+}
+
+#flash-overlay.flash {
+  animation: flash 0.5s ease-out;
+}
+
+@keyframes flash {
+  0%   { opacity: 0.95; }
+  100% { opacity: 0; }
 }
 
 /* ── Idle ─────────────────────────────────────── */
@@ -39,23 +75,63 @@ html, body {
   text-align: center;
 }
 
-.idle-content h1 {
-  font-size: 4rem;
-  margin-bottom: 1rem;
+.wordmark {
+  font-size: 4.5rem;
+  font-weight: 200;
+  letter-spacing: 1.2rem;
+  margin-right: -1.2rem; /* optisch zentrieren (letzter letter-spacing) */
+  margin-top: 2.5rem;
 }
 
 .hint {
-  font-size: 1.8rem;
-  color: #aaa;
+  margin-top: 1.25rem;
+  font-size: 1.5rem;
+  font-weight: 300;
+  color: var(--fg-dim);
+  letter-spacing: 0.15rem;
 }
 
-.pulse {
-  animation: pulse 2s ease-in-out infinite;
+.hint-sep {
+  color: var(--fg-faint);
+  font-style: italic;
 }
 
-@keyframes pulse {
-  0%, 100% { opacity: 0.4; }
-  50%      { opacity: 1; }
+/* Pulsierender Ring um das Kamera-Icon */
+.idle-ring {
+  position: relative;
+  width: 180px;
+  height: 180px;
+  margin: 0 auto;
+  border: 2px solid var(--fg);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+.idle-ring-pulse {
+  position: absolute;
+  inset: -2px;
+  border: 2px solid var(--fg);
+  border-radius: 50%;
+  opacity: 0;
+  animation: ring-pulse 3s ease-out infinite;
+}
+
+.idle-ring-pulse.delay {
+  animation-delay: 1.5s;
+}
+
+@keyframes ring-pulse {
+  0%   { transform: scale(1);    opacity: 0.6; }
+  100% { transform: scale(1.45); opacity: 0; }
+}
+
+.idle-camera {
+  width: 84px;
+  height: 84px;
+  color: var(--fg);
 }
 
 /* ── Countdown ────────────────────────────────── */
@@ -64,45 +140,76 @@ html, body {
   text-align: center;
 }
 
-.countdown-text {
-  font-size: 3rem;
-  margin-bottom: 2rem;
+.countdown-label {
+  font-size: 1.6rem;
+  font-weight: 300;
+  letter-spacing: 0.4rem;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+  margin-bottom: 1.5rem;
+}
+
+.countdown-number {
+  font-size: 13rem;
+  font-weight: 100;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.countdown-number.tick {
+  animation: number-pop 0.9s ease-out;
+}
+
+@keyframes number-pop {
+  0%   { transform: scale(1.25); opacity: 0.2; }
+  35%  { transform: scale(1);    opacity: 1; }
+  100% { transform: scale(0.96); opacity: 0.85; }
 }
 
 .dots {
   display: flex;
-  gap: 1rem;
+  gap: 0.9rem;
   justify-content: center;
+  margin-top: 2.5rem;
 }
 
 .dot {
-  width: 28px;
-  height: 28px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  background: #3b82f6;
-  transition: background 0.3s ease, opacity 0.3s ease;
+  border: 1.5px solid var(--fg);
+  background: var(--fg);
+  transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 .dot.off {
-  opacity: 0.15;
+  background: transparent;
+  opacity: 0.35;
+  transform: scale(0.8);
 }
 
 /* ── Review ───────────────────────────────────── */
 
-#screen-review .review-content {
+.review-content {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.5rem;
+  gap: 1.75rem;
   max-height: 100vh;
-  padding: 1rem;
+  padding: 1.5rem;
 }
 
-#screen-review img {
-  max-width: 100%;
-  max-height: 75vh;
+/* Weißer Rahmen wie ein Print */
+.photo-frame {
+  background: var(--fg);
+  padding: 12px 12px 18px;
+  line-height: 0;
+}
+
+.photo-frame img {
+  max-width: calc(100vw - 6rem);
+  max-height: 68vh;
   object-fit: contain;
-  border-radius: 8px;
 }
 
 .review-buttons {
@@ -111,20 +218,38 @@ html, body {
   justify-content: center;
 }
 
+/* Ablaufender Fortschrittsbalken (Auto-Reset des Review-Screens) */
+.review-timer {
+  width: min(420px, 70vw);
+  height: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.review-timer-bar {
+  height: 100%;
+  background: var(--fg);
+  transform-origin: left;
+  transform: scaleX(1);
+}
+
+.review-timer-bar.running {
+  transition-property: transform;
+  transition-timing-function: linear;
+  transform: scaleX(0);
+}
+
 /* ── Buttons ──────────────────────────────────── */
 
 .btn {
-  padding: 0.75rem 2rem;
-  font-size: 1.4rem;
-  border: none;
-  border-radius: 8px;
+  padding: 0.9rem 2.4rem;
+  font-size: 1.35rem;
+  font-weight: 400;
+  letter-spacing: 0.08rem;
+  border-radius: 0;
   cursor: pointer;
   transition: opacity 0.2s ease, transform 0.1s ease;
   font-family: inherit;
-}
-
-.btn:hover {
-  opacity: 0.85;
 }
 
 .btn:active {
@@ -132,19 +257,24 @@ html, body {
 }
 
 .btn:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
-.btn-primary {
-  background: #3b82f6;
-  color: #fff;
+.btn-solid {
+  background: var(--fg);
+  color: var(--bg);
+  border: 2px solid var(--fg);
 }
 
-.btn-secondary {
-  background: #374151;
-  color: #fff;
+.btn-outline {
+  background: transparent;
+  color: var(--fg);
+  border: 2px solid var(--fg);
 }
+
+.btn-solid:hover { opacity: 0.85; }
+.btn-outline:hover { opacity: 0.75; }
 
 /* ── QR Code screen ───────────────────────────── */
 
@@ -152,65 +282,145 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
+  gap: 1.75rem;
   text-align: center;
   padding: 2rem;
+  max-height: 100vh;
+  overflow-y: auto;
 }
 
 .qr-content h2 {
-  font-size: 2.5rem;
+  font-size: 2.4rem;
+  font-weight: 200;
+  letter-spacing: 0.5rem;
+  text-transform: uppercase;
+}
+
+/* Schritte untereinander statt nebeneinander */
+.qr-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  align-items: center;
+}
+
+.qr-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+  border: 1px solid var(--line);
+  padding: 1.25rem 2.5rem;
+  opacity: 0;
+  transform: translateY(16px);
+  animation: step-in 0.5s ease forwards;
+}
+
+.qr-step:nth-child(2) {
+  animation-delay: 0.25s;
+}
+
+@keyframes step-in {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.qr-step-header {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.qr-step-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border: 1.5px solid var(--fg);
+  border-radius: 50%;
+  font-size: 1.2rem;
+  flex: 0 0 auto;
 }
 
 .qr-instruction {
-  font-size: 1.2rem;
-  color: #aaa;
+  font-size: 1.25rem;
+  font-weight: 300;
+  color: var(--fg);
 }
 
-#qr-code-img,
-#qr-download-img {
-  width: 220px;
-  height: 220px;
-  border-radius: 8px;
+.qr-img {
+  width: 200px;
+  height: 200px;
   background: #fff;
   padding: 8px;
 }
 
 .qr-credentials {
-  font-size: 1.1rem;
-  color: #d1d5db;
-  line-height: 1.8;
+  font-size: 1.05rem;
+  color: var(--fg-dim);
+  line-height: 1.9;
 }
 
 .qr-label {
-  color: #9ca3af;
-  font-weight: 600;
+  display: inline-block;
+  min-width: 6.5rem;
+  text-align: right;
+  margin-right: 0.6rem;
+  color: var(--fg-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.1rem;
+  font-size: 0.85rem;
 }
 
-.qr-wrapper {
-  display: flex;
-  flex-direction: row;
-  justify-content: center;
-  gap: 2rem;
-  width: 100%;
-}
-
-.qr-box {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
+.qr-url {
+  font-size: 0.95rem;
+  color: var(--fg-dim);
+  font-variant-numeric: tabular-nums;
+  word-break: break-all;
+  max-width: 360px;
 }
 
 /* ── Error ─────────────────────────────────────── */
 
 .error-content {
   text-align: center;
-  color: #f87171;
-  font-size: 2rem;
+  max-width: 80vw;
 }
 
-.error-content p:last-child {
-  font-size: 1.2rem;
-  margin-top: 1rem;
-  color: #aaa;
+.error-icon {
+  width: 90px;
+  height: 90px;
+  margin: 0 auto 1.5rem;
+  border: 3px solid var(--fg);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3.2rem;
+  font-weight: 200;
+  animation: error-shake 0.5s ease;
+}
+
+@keyframes error-shake {
+  0%, 100% { transform: translateX(0); }
+  25%      { transform: translateX(-8px); }
+  75%      { transform: translateX(8px); }
+}
+
+.error-title {
+  font-size: 2rem;
+  font-weight: 300;
+  letter-spacing: 0.1rem;
+}
+
+#error-message {
+  margin-top: 0.8rem;
+  font-size: 1.1rem;
+  color: var(--fg-dim);
+}
+
+.error-hint {
+  margin-top: 1.6rem;
+  font-size: 1rem;
+  color: var(--fg-faint);
 }

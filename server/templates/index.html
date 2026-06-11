@@ -7,18 +7,31 @@
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
+  <!-- Blitz-Overlay (wird beim Auslösen kurz eingeblendet) -->
+  <div id="flash-overlay"></div>
+
   <!-- Idle screen -->
   <div id="screen-idle" class="screen active">
     <div class="idle-content">
-      <h1>📸 Fotobox</h1>
-      <p id="trigger-btn" class="hint pulse" style="cursor: pointer; user-select: none;">Drücke den Button oder tippe hier!</p>
+      <div class="idle-ring" id="trigger-btn" role="button" aria-label="Foto auslösen">
+        <div class="idle-ring-pulse"></div>
+        <div class="idle-ring-pulse delay"></div>
+        <svg class="idle-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M14.5 4h-5L7.5 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3.5l-2-3z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>
+      </div>
+      <h1 class="wordmark">FOTOBOX</h1>
+      <p class="hint">Knopf dr&uuml;cken <span class="hint-sep">oder</span> Kamera antippen</p>
     </div>
   </div>
 
   <!-- Countdown screen -->
   <div id="screen-countdown" class="screen">
     <div class="countdown-content">
-      <p class="countdown-text">Achtung …</p>
+      <p class="countdown-label">Bereit machen &hellip;</p>
+      <div id="countdown-number" class="countdown-number">8</div>
       <div id="countdown-dots" class="dots"></div>
     </div>
   </div>
@@ -26,48 +39,62 @@
   <!-- Review screen (show captured photo + action buttons) -->
   <div id="screen-review" class="screen">
     <div class="review-content">
-      <img id="review-photo" src="" alt="Dein Foto" />
-      <div class="review-buttons">
-        <button id="btn-more-photos" class="btn btn-secondary">📷 Mehr Fotos</button>
-        <button id="btn-done" class="btn btn-primary">✅ Fertig</button>
+      <div class="photo-frame">
+        <img id="review-photo" src="" alt="Dein Foto" />
       </div>
+      <div class="review-buttons">
+        <button id="btn-more-photos" class="btn btn-outline">Noch ein Foto</button>
+        <button id="btn-done" class="btn btn-solid">Fertig &ndash; Fotos holen</button>
+      </div>
+      <div class="review-timer"><div id="review-timer-bar" class="review-timer-bar"></div></div>
     </div>
   </div>
-  <!-- QR code screen -->
+
   <!-- QR code screen -->
   <div id="screen-qr" class="screen">
     <div class="qr-content">
-      <h2>📡 Fotos herunterladen</h2>
-      
-      <div class="qr-wrapper">
-        <div class="qr-box" id="box-wifi">
-          <p class="qr-instruction">1) WLAN via QR verbinden</p>
-          <img id="qr-code-img" src="" alt="WiFi QR Code" />
+      <h2>Deine Fotos</h2>
+
+      <div class="qr-steps">
+        <div class="qr-step" id="box-wifi">
+          <div class="qr-step-header">
+            <span class="qr-step-number">1</span>
+            <p class="qr-instruction">Mit dem Fotobox-WLAN verbinden</p>
+          </div>
+          <img id="qr-code-img" class="qr-img" src="" alt="WLAN QR-Code" />
+          <div class="qr-credentials" id="qr-credentials">
+            <p><span class="qr-label">WLAN</span> <span id="qr-ssid"></span></p>
+            <p><span class="qr-label">Passwort</span> <span id="qr-password"></span></p>
+          </div>
         </div>
-        <div class="qr-box" id="box-download">
-          <p class="qr-instruction" id="instruction-download">2) Download-Webseite per QR öffnen</p>
-          <img id="qr-download-img" src="" alt="Download URL QR Code" />
+
+        <div class="qr-step" id="box-download">
+          <div class="qr-step-header">
+            <span class="qr-step-number" id="step-number-download">2</span>
+            <p class="qr-instruction" id="instruction-download">Code scannen und Fotos herunterladen</p>
+          </div>
+          <img id="qr-download-img" class="qr-img" src="" alt="Download QR-Code" />
+          <p class="qr-url" id="qr-url"></p>
         </div>
       </div>
 
-      <div class="qr-credentials" id="qr-credentials">
-        <p><span class="qr-label">WLAN:</span> <span id="qr-ssid"></span></p>
-        <p><span class="qr-label">Passwort:</span> <span id="qr-password"></span></p>
-        <p><span class="qr-label">URL:</span> <span id="qr-url"></span></p>
-      </div>
-      <button id="btn-new-session" class="btn btn-primary">🔄 Neue Session</button>
+      <button id="btn-new-session" class="btn btn-outline">Neue Session starten</button>
     </div>
   </div>
+
   <!-- Error overlay -->
   <div id="screen-error" class="screen">
     <div class="error-content">
-      <p>⚠️ Fehler bei der Aufnahme</p>
+      <div class="error-icon">!</div>
+      <p class="error-title">Das hat leider nicht geklappt</p>
       <p id="error-message"></p>
+      <p class="error-hint">Es geht gleich automatisch weiter &hellip;</p>
     </div>
   </div>
 
   <script>
     const REVIEW_SECONDS = {{ review_seconds }};
+    const QR_TIMEOUT_SECONDS = {{ qr_timeout_seconds }};
   </script>
   <script src="/static/app.js"></script>
 </body>

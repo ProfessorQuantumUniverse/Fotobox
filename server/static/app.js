@@ -3,48 +3,116 @@
 (function () {
   "use strict";
 
+  var COUNTDOWN_SECONDS = 8; // muss zum Arduino-/Trigger-Countdown passen
+
   // Screen elements
-  const screenIdle      = document.getElementById("screen-idle");
-  const screenCountdown = document.getElementById("screen-countdown");
-  const screenReview    = document.getElementById("screen-review");
-  const screenQr        = document.getElementById("screen-qr");
-  const screenError     = document.getElementById("screen-error");
-  const reviewPhoto     = document.getElementById("review-photo");
-  const errorMessage    = document.getElementById("error-message");
-  const countdownDots   = document.getElementById("countdown-dots");
+  var screenIdle      = document.getElementById("screen-idle");
+  var screenCountdown = document.getElementById("screen-countdown");
+  var screenReview    = document.getElementById("screen-review");
+  var screenQr        = document.getElementById("screen-qr");
+  var screenError     = document.getElementById("screen-error");
+  var reviewPhoto     = document.getElementById("review-photo");
+  var errorMessage    = document.getElementById("error-message");
+  var countdownDots   = document.getElementById("countdown-dots");
+  var countdownNumber = document.getElementById("countdown-number");
+  var flashOverlay    = document.getElementById("flash-overlay");
+  var reviewTimerBar  = document.getElementById("review-timer-bar");
 
   // Review buttons
-  const btnMorePhotos   = document.getElementById("btn-more-photos");
-  const btnDone         = document.getElementById("btn-done");
+  var btnMorePhotos = document.getElementById("btn-more-photos");
+  var btnDone       = document.getElementById("btn-done");
 
   // QR screen elements
-  const qrCodeImg       = document.getElementById("qr-code-img");
-  const qrDownloadImg   = document.getElementById("qr-download-img");
-  const qrSsid          = document.getElementById("qr-ssid");
-  const qrPassword      = document.getElementById("qr-password");
-  const qrUrl           = document.getElementById("qr-url");
-  const btnNewSession   = document.getElementById("btn-new-session");
+  var qrCodeImg     = document.getElementById("qr-code-img");
+  var qrDownloadImg = document.getElementById("qr-download-img");
+  var qrSsid        = document.getElementById("qr-ssid");
+  var qrPassword    = document.getElementById("qr-password");
+  var qrUrl         = document.getElementById("qr-url");
+  var btnNewSession = document.getElementById("btn-new-session");
+
+  var countdownInterval = null;
+  var reviewTimeout = null;
+  var qrTimeout = null;
 
   // ── Helpers ──────────────────────────────────────────
 
+  function clearTimers() {
+    if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
+    if (reviewTimeout)     { clearTimeout(reviewTimeout);      reviewTimeout = null; }
+    if (qrTimeout)         { clearTimeout(qrTimeout);          qrTimeout = null; }
+  }
+
   function showScreen(screen) {
+    clearTimers();
     [screenIdle, screenCountdown, screenReview, screenQr, screenError].forEach(function (s) {
       s.classList.remove("active");
     });
     screen.classList.add("active");
   }
 
-  function buildDots(count) {
+  function returnToIdle() {
+    showScreen(screenIdle);
+  }
+
+  function triggerFlash() {
+    flashOverlay.classList.remove("flash");
+    // Reflow erzwingen, damit die Animation erneut startet
+    void flashOverlay.offsetWidth;
+    flashOverlay.classList.add("flash");
+  }
+
+  // ── Countdown (Zahl + Punkte) ─────────────────────────
+  // Wichtig: erst showScreen() (löscht alte Timer), dann das Intervall setzen.
+
+  function startCountdown() {
+    var remaining = COUNTDOWN_SECONDS;
+
     countdownDots.innerHTML = "";
-    for (let i = 0; i < count; i++) {
-      const dot = document.createElement("div");
+    for (var i = 0; i < COUNTDOWN_SECONDS; i++) {
+      var dot = document.createElement("div");
       dot.className = "dot";
       countdownDots.appendChild(dot);
     }
+
+    function render() {
+      countdownNumber.textContent = String(remaining);
+      countdownNumber.classList.remove("tick");
+      void countdownNumber.offsetWidth;
+      countdownNumber.classList.add("tick");
+
+      var dots = countdownDots.children;
+      for (var j = 0; j < dots.length; j++) {
+        dots[j].classList.toggle("off", j >= remaining);
+      }
+    }
+
+    render();
+    countdownInterval = setInterval(function () {
+      remaining -= 1;
+      if (remaining <= 0) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+        countdownNumber.textContent = "";
+        return;
+      }
+      render();
+    }, 1000);
   }
 
-  function returnToIdle() {
-    showScreen(screenIdle);
+  // ── Review-Auto-Reset ─────────────────────────────────
+
+  function startReviewTimer() {
+    if (!reviewTimerBar || !window.REVIEW_SECONDS || REVIEW_SECONDS <= 0) { return; }
+    reviewTimerBar.classList.remove("running");
+    reviewTimerBar.style.transitionDuration = "0s";
+    void reviewTimerBar.offsetWidth;
+    reviewTimerBar.style.transitionDuration = REVIEW_SECONDS + "s";
+    reviewTimerBar.classList.add("running");
+
+    reviewTimeout = setTimeout(function () {
+      // Foto bleibt in der Session – die Box geht nur zurück in den Idle-Modus.
+      returnToIdle();
+    }, REVIEW_SECONDS * 1000);
   }
 
   // ── SSE Connection ──────────────────────────────────
@@ -62,23 +130,25 @@
 
       switch (msg.event) {
         case "button_pressed":
-          buildDots(8);
-          showScreen(screenCountdown);
+          startCountdownScreen();
           break;
 
         case "countdown_complete":
-          // waiting for photo…
+          triggerFlash();
           break;
 
         case "photo_taken":
-          reviewPhoto.src = "/photos/" + msg.data.filename;
+          // Downskalierte Preview laden – volle DSLR-Auflösung überfordert
+          // den Browser auf dem Pi 3.
+          reviewPhoto.src = "/photos/preview/" + encodeURIComponent(msg.data.filename);
           showScreen(screenReview);
+          startReviewTimer();
           break;
 
         case "error":
           errorMessage.textContent = msg.data.message || "Unbekannter Fehler";
           showScreen(screenError);
-          setTimeout(returnToIdle, 4000);
+          setTimeout(returnToIdle, 5000);
           break;
       }
     };
@@ -87,6 +157,11 @@
       source.close();
       setTimeout(connectSSE, 3000);
     };
+  }
+
+  function startCountdownScreen() {
+    showScreen(screenCountdown);
+    startCountdown();
   }
 
   // ── Review button handlers ────────────────────────────
@@ -101,36 +176,46 @@
     btnDone.addEventListener("click", function () {
       btnDone.disabled = true;
       fetch("/session/finish", { method: "POST" })
-        .then(function (res) { return res.json(); })
+        .then(function (res) {
+          return res.json().then(function (data) {
+            if (!res.ok) { throw new Error(data.error || "Session konnte nicht beendet werden"); }
+            return data;
+          });
+        })
         .then(function (data) {
-          const boxWifi = document.getElementById("box-wifi");
-          const instructionDownload = document.getElementById("instruction-download");
-          const qrCredentials = document.getElementById("qr-credentials");
+          var boxWifi = document.getElementById("box-wifi");
+          var instructionDownload = document.getElementById("instruction-download");
+          var stepNumberDownload = document.getElementById("step-number-download");
 
           if (data.share_mode === "nextcloud") {
-            // Nextcloud: Verstecke WLAN-Anweisungen, zeige nur den Nextcloud-Link
+            // Nextcloud: nur ein QR-Code, kein WLAN-Schritt
             boxWifi.style.display = "none";
-            qrCredentials.style.display = "none";
-            instructionDownload.textContent = "Scanne den Code mit deiner Kamera-App";
+            stepNumberDownload.textContent = "1";
+            instructionDownload.textContent = "Code mit der Kamera-App scannen";
             qrDownloadImg.src = data.download_qr;
+            qrUrl.textContent = "";
           } else {
-            // Hotspot: Zeige beide QR Codes (WLAN + Lokal)
+            // Hotspot: zwei Schritte untereinander (WLAN, dann Download)
             boxWifi.style.display = "flex";
-            qrCredentials.style.display = "block";
-            instructionDownload.textContent = "2) Download-Webseite per QR öffnen";
-            
-            qrCodeImg.src = data.wifi_qr || data.qr;
-            qrDownloadImg.src = data.download_qr || data.qr;
+            stepNumberDownload.textContent = "2";
+            instructionDownload.textContent = "Code scannen und Fotos herunterladen";
+            qrCodeImg.src = data.wifi_qr;
+            qrDownloadImg.src = data.download_qr;
             qrSsid.textContent = data.ssid;
             qrPassword.textContent = data.password;
-            qrUrl.textContent = data.download_url || data.url;
+            qrUrl.textContent = data.download_url;
           }
 
           showScreen(screenQr);
+          if (window.QR_TIMEOUT_SECONDS && QR_TIMEOUT_SECONDS > 0) {
+            qrTimeout = setTimeout(returnToIdle, QR_TIMEOUT_SECONDS * 1000);
+          }
         })
         .catch(function (err) {
           console.error("session/finish error:", err);
-          returnToIdle();
+          errorMessage.textContent = err.message || "Verbindungsfehler";
+          showScreen(screenError);
+          setTimeout(returnToIdle, 5000);
         })
         .finally(function () {
           btnDone.disabled = false;
@@ -148,12 +233,13 @@
     });
   }
 
-    // ── WebUI Trigger ────────────────────────────────────
-  const triggerBtn = document.getElementById("trigger-btn");
+  // ── WebUI Trigger ────────────────────────────────────
+
+  var triggerBtn = document.getElementById("trigger-btn");
   if (triggerBtn) {
-    triggerBtn.addEventListener("click", function() {
+    triggerBtn.addEventListener("click", function () {
       fetch("/trigger", { method: "POST" })
-        .catch(err => console.error("Trigger error:", err));
+        .catch(function (err) { console.error("Trigger error:", err); });
     });
   }
 
