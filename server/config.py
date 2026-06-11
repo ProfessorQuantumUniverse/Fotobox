@@ -63,6 +63,13 @@ QR_TIMEOUT_SECONDS = int(os.environ.get("FOTOBOX_QR_TIMEOUT_SECONDS", "120"))
 # (20+ MP) bringen den Chromium auf dem Pi 3 ans Limit – die Preview nicht.
 PREVIEW_MAX_SIZE = int(os.environ.get("FOTOBOX_PREVIEW_MAX_SIZE", "1280"))
 
+# --- Auto-Update über Ethernet ---
+# Beim Einstecken eines LAN-Kabels zieht die Box automatisch die neueste
+# Version per git. Auf 0 setzen, um das Verhalten abzuschalten.
+ETH_IFACE = os.environ.get("FOTOBOX_ETH_IFACE", "eth0")
+AUTO_UPDATE = os.environ.get("FOTOBOX_AUTO_UPDATE", "1") == "1"
+ETH_POLL_INTERVAL = float(os.environ.get("FOTOBOX_ETH_POLL_INTERVAL", "2"))
+
 # --- Access Point ---
 AP_IFACE = os.environ.get("FOTOBOX_AP_IFACE", "wlan0")
 AP_CONNECTION_NAME = os.environ.get("FOTOBOX_AP_CONNECTION_NAME", "fotobox-ap")

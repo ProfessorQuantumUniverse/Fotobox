@@ -10,6 +10,19 @@
   <!-- Blitz-Overlay (wird beim Auslösen kurz eingeblendet) -->
   <div id="flash-overlay"></div>
 
+  <!-- Toast-Benachrichtigung (Ethernet / Auto-Update) -->
+  <div id="toast" class="toast" role="status" aria-live="polite">
+    <div class="toast-row">
+      <div class="toast-icon" id="toast-icon"></div>
+      <div class="toast-text">
+        <div class="toast-title" id="toast-title"></div>
+        <div class="toast-message" id="toast-message"></div>
+      </div>
+      <div class="toast-percent" id="toast-percent"></div>
+    </div>
+    <div class="toast-progress"><div class="toast-progress-bar" id="toast-progress-bar"></div></div>
+  </div>
+
   <!-- Idle screen -->
   <div id="screen-idle" class="screen active">
     <div class="idle-content">

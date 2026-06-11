@@ -218,6 +218,65 @@ class TestTrigger:
             app_module._trigger_pending = False
 
 
+class TestEthernetHandlers:
+    """The Ethernet monitor callbacks must push the right SSE events."""
+
+    def _drain(self):
+        while not app_module.event_queue.empty():
+            app_module.event_queue.get_nowait()
+
+    def test_connect_triggers_update_and_events(self):
+        self._drain()
+        with patch("server.app.AUTO_UPDATE", True), \
+             patch("server.app.start_update_async") as mock_update:
+            app_module._on_ethernet_connect()
+
+        events = []
+        while not app_module.event_queue.empty():
+            events.append(app_module.event_queue.get_nowait()["event"])
+
+        assert "ethernet_connected" in events
+        assert "update_progress" in events  # initial 0% emitted
+        mock_update.assert_called_once()
+
+    def test_connect_without_auto_update(self):
+        self._drain()
+        with patch("server.app.AUTO_UPDATE", False), \
+             patch("server.app.start_update_async") as mock_update:
+            app_module._on_ethernet_connect()
+
+        events = [app_module.event_queue.get_nowait()["event"]
+                  for _ in range(app_module.event_queue.qsize())]
+        assert events == ["ethernet_connected"]
+        mock_update.assert_not_called()
+
+    def test_disconnect_cancels_update(self):
+        self._drain()
+        with patch("server.app.cancel_update") as mock_cancel:
+            app_module._on_ethernet_disconnect()
+
+        mock_cancel.assert_called_once()
+        event = app_module.event_queue.get_nowait()
+        assert event["event"] == "ethernet_disconnected"
+
+    def test_update_progress_event_shape(self):
+        self._drain()
+        app_module._emit_update_progress(42, "Lade …")
+        event = app_module.event_queue.get_nowait()
+        assert event["event"] == "update_progress"
+        assert event["data"]["percent"] == 42
+        assert event["data"]["message"] == "Lade …"
+
+    def test_update_done_event_shape(self):
+        self._drain()
+        with patch("server.app.current_revision", return_value="abc1234"):
+            app_module._on_update_done(True, "Aktualisiert auf abc1234")
+        event = app_module.event_queue.get_nowait()
+        assert event["event"] == "update_done"
+        assert event["data"]["success"] is True
+        assert event["data"]["revision"] == "abc1234"
+
+
 class TestDownloadGallery:
     """Tests for the guest download page."""
 
