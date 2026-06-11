@@ -29,6 +29,22 @@
   var qrPassword    = document.getElementById("qr-password");
   var qrUrl         = document.getElementById("qr-url");
   var btnNewSession = document.getElementById("btn-new-session");
+  var btnQrNext     = document.getElementById("btn-qr-next");
+  var btnQrBack     = document.getElementById("btn-qr-back");
+
+  function showQrPage(id) {
+    var pages = document.querySelectorAll(".qr-page");
+    for (var i = 0; i < pages.length; i++) {
+      pages[i].classList.toggle("active", pages[i].id === id);
+    }
+  }
+
+  if (btnQrNext) {
+    btnQrNext.addEventListener("click", function () { showQrPage("box-download"); });
+  }
+  if (btnQrBack) {
+    btnQrBack.addEventListener("click", function () { showQrPage("box-wifi"); });
+  }
 
   var countdownInterval = null;
   var reviewTimeout = null;
@@ -198,11 +214,27 @@
           break;
 
         case "photo_taken":
-          // Downskalierte Preview laden – volle DSLR-Auflösung überfordert
-          // den Browser auf dem Pi 3.
-          reviewPhoto.src = "/photos/preview/" + encodeURIComponent(msg.data.filename);
-          showScreen(screenReview);
-          startReviewTimer();
+          (function (filename) {
+            var loader     = document.getElementById("review-loader");
+            var photoFrame = document.getElementById("photo-frame");
+            // Zustände zurücksetzen: Loader-Loop sichtbar, Frame versteckt.
+            loader.classList.remove("done");
+            photoFrame.classList.remove("loaded");
+            reviewPhoto.onload = null;
+            reviewPhoto.src = "";
+
+            showScreen(screenReview);
+
+            function reveal() {
+              // Foto + Rahmen erscheinen gemeinsam, Loader blendet aus.
+              loader.classList.add("done");
+              photoFrame.classList.add("loaded");
+              startReviewTimer();
+            }
+            reviewPhoto.onload = reveal;
+            reviewPhoto.onerror = reveal;
+            reviewPhoto.src = "/photos/preview/" + encodeURIComponent(filename);
+          }(msg.data.filename));
           break;
 
         case "error":
@@ -211,61 +243,16 @@
           setTimeout(returnToIdle, 5000);
           break;
 
-        case "ethernet_connected":
-          showToast({
-            icon: "link",
-            title: "LAN verbunden",
-            message: "Suche nach Updates …",
-            progress: false,
-            autohide: 0
-          });
-          break;
-
-        case "ethernet_disconnected":
-          // Cable raus → laufendes Update wird serverseitig zurückgerollt.
-          showToast({
-            icon: "unlink",
-            title: "LAN getrennt",
-            message: "Vorherige Version bleibt aktiv",
-            variant: "error",
-            progress: false,
-            autohide: 4000
-          });
-          break;
-
-        case "update_progress":
-          showToast({
-            icon: "spinner",
-            title: "Update läuft",
-            message: msg.data.message || "Lade herunter …",
-            percent: msg.data.percent,
-            progress: true,
-            autohide: 0
-          });
-          updateToastProgress(msg.data.percent, msg.data.message);
-          break;
-
         case "update_done":
-          if (msg.data.success) {
-            updateToastProgress(100, msg.data.message);
-            showToast({
-              icon: "check",
-              title: "Update fertig",
-              message: msg.data.message || "Aktuell",
-              percent: 100,
-              progress: true,
-              autohide: 4500
-            });
-          } else {
-            showToast({
-              icon: "cross",
-              title: "Update fehlgeschlagen",
-              message: msg.data.message || "Bitte später erneut versuchen",
-              variant: "error",
-              progress: false,
-              autohide: 6000
-            });
-          }
+          // Server schickt dieses Event NUR, wenn wirklich eine neue Version
+          // geladen wurde. Alles andere läuft still im Hintergrund.
+          showToast({
+            icon: "check",
+            title: "Update installiert",
+            message: msg.data.message || "Neue Version aktiv",
+            progress: false,
+            autohide: 5000
+          });
           break;
       }
     };
@@ -300,29 +287,14 @@
           });
         })
         .then(function (data) {
-          var boxWifi = document.getElementById("box-wifi");
-          var instructionDownload = document.getElementById("instruction-download");
-          var stepNumberDownload = document.getElementById("step-number-download");
+          // Hotspot: zwei Seiten (Schritt 1 WLAN → Weiter → Schritt 2 Download)
+          qrCodeImg.src = data.wifi_qr;
+          qrDownloadImg.src = data.download_qr;
+          qrSsid.textContent = data.ssid;
+          qrPassword.textContent = data.password;
+          qrUrl.textContent = data.download_url;
 
-          if (data.share_mode === "nextcloud") {
-            // Nextcloud: nur ein QR-Code, kein WLAN-Schritt
-            boxWifi.style.display = "none";
-            stepNumberDownload.textContent = "1";
-            instructionDownload.textContent = "Code mit der Kamera-App scannen";
-            qrDownloadImg.src = data.download_qr;
-            qrUrl.textContent = "";
-          } else {
-            // Hotspot: zwei Schritte untereinander (WLAN, dann Download)
-            boxWifi.style.display = "flex";
-            stepNumberDownload.textContent = "2";
-            instructionDownload.textContent = "Code scannen und Fotos herunterladen";
-            qrCodeImg.src = data.wifi_qr;
-            qrDownloadImg.src = data.download_qr;
-            qrSsid.textContent = data.ssid;
-            qrPassword.textContent = data.password;
-            qrUrl.textContent = data.download_url;
-          }
-
+          showQrPage("box-wifi");  // immer mit Schritt 1 starten
           showScreen(screenQr);
           if (window.QR_TIMEOUT_SECONDS && QR_TIMEOUT_SECONDS > 0) {
             qrTimeout = setTimeout(returnToIdle, QR_TIMEOUT_SECONDS * 1000);

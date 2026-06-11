@@ -27,18 +27,30 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  /* Kiosk: nichts markierbar, nichts ziehbar, kein Tap-Highlight. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 html, body {
   width: 100%;
   height: 100%;
-  overflow: hidden;
+  overflow: hidden;          /* kein Scrollen */
+  position: fixed;           /* iOS/Touch: Gummiband-Scrollen unterbinden */
+  inset: 0;
+  overscroll-behavior: none;
+  touch-action: none;        /* kein Pinch-Zoom, kein Scroll-Gesten */
   background: var(--bg);
   color: var(--fg);
   font-family: var(--font);
   -webkit-font-smoothing: antialiased;
-  cursor: none; /* Kiosk: kein Mauszeiger */
+  cursor: none;              /* Kiosk: kein Mauszeiger */
 }
+
+img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 
 /* ── Screens ─────────────────────────────────── */
 
@@ -87,11 +99,11 @@ html, body {
 }
 
 .wordmark {
-  font-size: 5.2rem;
+  font-size: clamp(2.6rem, 11vh, 5.2rem);
   font-weight: 800;
   letter-spacing: 1rem;
   margin-right: -1rem; /* optisch zentrieren (letzter letter-spacing) */
-  margin-top: 2.5rem;
+  margin-top: clamp(1rem, 4vh, 2.5rem);
 }
 
 .hint {
@@ -161,7 +173,7 @@ html, body {
 }
 
 .countdown-number {
-  font-size: 14rem;
+  font-size: clamp(6rem, 34vh, 14rem);
   font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
@@ -210,7 +222,35 @@ html, body {
   padding: 1.5rem;
 }
 
-/* Weißer Rahmen wie ein Print */
+/* Fester Bereich für Loader-Canvas und Foto-Frame (beide liegen übereinander) */
+.review-photo-slot {
+  position: relative;
+  width: calc(100vw - 6rem);
+  max-width: 620px;
+  /* Höhe: 3:2-Ratio, aber maximal so viel, dass Buttons + Padding noch passen */
+  max-height: calc(100vh - 180px);
+  aspect-ratio: 3 / 2;
+  flex-shrink: 0;
+  background: #000;
+}
+
+#review-loader {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  opacity: 1;
+  transition: opacity 0.55s ease;
+}
+
+#review-loader.done {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Weißer Rahmen wie ein Print – erscheint zeitgleich mit dem Foto */
 .photo-frame {
   background: var(--fg);
   padding: 12px 12px 18px;
@@ -296,8 +336,9 @@ html, body {
   gap: 1.75rem;
   text-align: center;
   padding: 2rem;
-  max-height: 100vh;
-  overflow-y: auto;
+  height: 100vh;
+  justify-content: center;
+  overflow: hidden;
 }
 
 .qr-content h2 {
@@ -307,32 +348,32 @@ html, body {
   text-transform: uppercase;
 }
 
-/* Schritte untereinander statt nebeneinander */
+/* Pager: jeweils nur EINE Seite sichtbar, kein Scrollen auf dem Display. */
 .qr-steps {
-  display: flex;
-  flex-direction: column;
-  gap: 1.75rem;
-  align-items: center;
+  display: grid;
 }
 
-.qr-step {
+/* Alle Seiten überlappen im selben Grid-Slot; nur .active wird gezeigt. */
+.qr-page {
+  grid-area: 1 / 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.9rem;
   border: 1px solid var(--line);
-  padding: 1.25rem 2.5rem;
+  padding: 1.5rem 2.5rem;
+  visibility: hidden;
   opacity: 0;
   transform: translateY(16px);
-  animation: step-in 0.5s ease forwards;
+  pointer-events: none;
+  transition: opacity 0.35s ease, transform 0.35s ease;
 }
 
-.qr-step:nth-child(2) {
-  animation-delay: 0.25s;
-}
-
-@keyframes step-in {
-  to { opacity: 1; transform: translateY(0); }
+.qr-page.active {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
 }
 
 .qr-step-header {
@@ -555,4 +596,31 @@ html, body {
 .toast.hide-progress .toast-progress,
 .toast.hide-progress .toast-percent {
   display: none;
+}
+
+/* ── Kleine 16:9-Landscape-Displays (z. B. 800×480 / 1024×600) ──────────
+   Alles muss ohne Scrollen passen und jeder Button sichtbar bleiben. */
+@media (max-height: 640px) {
+  .qr-content { gap: 0.7rem; padding: 0.8rem; }
+  .qr-content h2 { font-size: 1.5rem; letter-spacing: 0.3rem; }
+
+  .qr-page { padding: 0.8rem 1.6rem; gap: 0.55rem; }
+  .qr-step-header { gap: 0.6rem; }
+  .qr-step-number { width: 1.8rem; height: 1.8rem; font-size: 1rem; }
+  .qr-instruction { font-size: 1.05rem; }
+  .qr-img { width: 160px; height: 160px; padding: 6px; }
+  .qr-credentials { font-size: 0.95rem; line-height: 1.5; }
+  .qr-url { font-size: 0.9rem; }
+
+  .review-content { gap: 0.8rem; padding: 0.8rem; }
+  .review-buttons { gap: 1rem; }
+
+  .countdown-label { margin-bottom: 0.6rem; font-size: 1.3rem; }
+  .dots { margin-top: 1rem; gap: 0.6rem; }
+  .dot { width: 12px; height: 12px; }
+
+  .btn { padding: 0.65rem 1.7rem; font-size: 1.1rem; }
+  .hint { margin-top: 0.8rem; font-size: 1.2rem; }
+  .idle-ring { width: 130px; height: 130px; }
+  .idle-camera { width: 64px; height: 64px; }
 }
