@@ -30,6 +30,8 @@ class TestRoutes:
 
         resp = client.get("/photos/test.jpg")
         assert resp.status_code == 200
+        # iOS lädt nur herunter, wenn Content-Disposition: attachment gesetzt ist.
+        assert "attachment" in resp.headers.get("Content-Disposition", "")
 
     def test_serve_photo_not_found(self, client):
         resp = client.get("/photos/nonexistent.jpg")

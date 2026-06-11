@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import queue
+import time
 from threading import Lock, Thread, Timer
 from typing import Optional
 
@@ -17,11 +18,12 @@ import qrcode
 from flask import Flask, Response, abort, jsonify, render_template, request, send_file, send_from_directory
 
 from server.access_point import create_ap, generate_ap_credentials, stop_ap
-from server.camera import capture_image, disable_display
+from server.camera import capture_image, disable_display, read_ac_power
 from server.config import (
     ALLOW_REMOTE_CONTROL,
     AP_IP,
     AUTO_UPDATE,
+    CAMERA_POWER_POLL,
     ETH_IFACE,
     ETH_POLL_INTERVAL,
     HOST,
@@ -146,6 +148,27 @@ def _on_ethernet_disconnect() -> None:
     """
     cancel_update()
 
+# ── Kamera-Stromüberwachung (USB-Laden) ──────────────────────────────────
+
+def _camera_power_loop() -> None:
+    """Poll the camera's AC/USB power state and toast on changes.
+
+    Ein Toast erscheint nur beim Wechsel: Laden beginnt → "Kamera lädt",
+    Laden endet → "Kamera am Akku". Die erste bekannte Messung legt nur den
+    Ausgangszustand fest (kein Toast). Läuft eine Aufnahme, wird der Poll
+    übersprungen (read_ac_power gibt dann None zurück).
+    """
+    last: Optional[bool] = None
+    while True:
+        time.sleep(CAMERA_POWER_POLL)
+        state = read_ac_power()
+        if state is None or state == last:
+            continue
+        if last is not None:  # nicht beim allerersten bekannten Wert toasten
+            event_queue.put({"event": "camera_power", "data": {"charging": state}})
+            logger.info("Camera power changed: charging=%s", state)
+        last = state
+
 # ── Routes ─────────────────────────────────────────────────────────────
 
 @app.route("/")
@@ -177,8 +200,13 @@ def events():
 
 @app.route("/photos/<path:filename>")
 def serve_photo(filename):
-    """Serve a captured photo (full resolution) from the photo directory."""
-    return send_from_directory(PHOTO_DIR, filename)
+    """Serve a captured photo (full resolution) as a forced download.
+
+    ``as_attachment=True`` setzt ``Content-Disposition: attachment``, damit
+    iOS Safari das Bild wirklich speichert (über das Teilen-/Download-Menü)
+    statt es nur im Tab zu öffnen.
+    """
+    return send_from_directory(PHOTO_DIR, filename, as_attachment=True)
 
 
 @app.route("/photos/preview/<filename>")
@@ -350,6 +378,8 @@ if __name__ == "__main__":
     start_serial()
     start_ethernet_monitor()
     Thread(target=disable_display, daemon=True).start()
+    if CAMERA_POWER_POLL > 0:
+        Thread(target=_camera_power_loop, daemon=True).start()
     logger.info("Fotobox running version %s", current_revision())
     try:
         app.run(host=HOST, port=PORT, debug=False, threaded=True)

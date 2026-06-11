@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from server.camera import capture_image, ensure_photo_dir
+from server.camera import capture_image, ensure_photo_dir, read_ac_power
 
 
 def _gphoto_router(gphoto_behaviour):
