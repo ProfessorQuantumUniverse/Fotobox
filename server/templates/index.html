@@ -7,10 +7,8 @@
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-  <!-- Blitz-Overlay (wird beim Auslösen kurz eingeblendet) -->
   <div id="flash-overlay"></div>
 
-  <!-- Toast-Benachrichtigung (Ethernet / Auto-Update) -->
   <div id="toast" class="toast" role="status" aria-live="polite">
     <div class="toast-row">
       <div class="toast-icon" id="toast-icon"></div>
@@ -23,7 +21,6 @@
     <div class="toast-progress"><div class="toast-progress-bar" id="toast-progress-bar"></div></div>
   </div>
 
-  <!-- Idle screen -->
   <div id="screen-idle" class="screen active">
     <div class="idle-content">
       <div class="idle-ring" id="trigger-btn" role="button" aria-label="Foto auslösen">
@@ -40,7 +37,6 @@
     </div>
   </div>
 
-  <!-- Countdown screen -->
   <div id="screen-countdown" class="screen">
     <div class="countdown-content">
       <p class="countdown-label">Bereit machen &hellip;</p>
@@ -49,7 +45,6 @@
     </div>
   </div>
 
-  <!-- Review screen (show captured photo + action buttons) -->
   <div id="screen-review" class="screen">
     <div class="review-content">
       <div class="review-photo-slot">
@@ -68,7 +63,6 @@
     </div>
   </div>
 
-  <!-- QR code screen -->
   <div id="screen-qr" class="screen">
     <div class="qr-content">
       <h2>Deine Fotos</h2>
@@ -102,7 +96,6 @@
     </div>
   </div>
 
-  <!-- Error overlay -->
   <div id="screen-error" class="screen">
     <div class="error-content">
       <div class="error-icon">!</div>
