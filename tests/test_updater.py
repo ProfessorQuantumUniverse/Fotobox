@@ -1,161 +1,61 @@
-"""Tests for the git self-updater (all git calls mocked)."""
+"""Tests for the manual update helper."""
 
-import subprocess
-from unittest.mock import MagicMock, patch
+from subprocess import CompletedProcess
+from unittest.mock import mock_open, patch
 
-import server.updater as updater
+import pytest
 
-
-def _completed(stdout="", returncode=0):
-    return MagicMock(stdout=stdout, returncode=returncode, stderr="")
+from server.updater import check_for_update, is_overlay_root, run_update_script
 
 
-class TestPhasePercent:
-    def test_receiving_objects_maps_into_band(self):
-        # Receiving objects band is 10..85
-        assert updater._phase_percent("Receiving objects", 0) == 10
-        assert updater._phase_percent("Receiving objects", 100) == 85
-        mid = updater._phase_percent("Receiving objects", 50)
-        assert 10 < mid < 85
+class TestIsOverlayRoot:
+    def test_detects_overlay(self):
+        mounts = "overlayroot / overlay rw,relatime 0 0\n"
+        with patch("builtins.open", mock_open(read_data=mounts)):
+            assert is_overlay_root() is True
 
-    def test_resolving_deltas_band(self):
-        assert updater._phase_percent("Resolving deltas", 100) == 98
+    def test_normal_root(self):
+        mounts = "/dev/mmcblk0p2 / ext4 rw,noatime 0 0\n"
+        with patch("builtins.open", mock_open(read_data=mounts)):
+            assert is_overlay_root() is False
 
-
-class TestIsGitRepo:
-    def test_true(self):
-        with patch.object(updater, "_run_git", return_value=_completed("true\n")):
-            assert updater.is_git_repo() is True
-
-    def test_false_when_git_missing(self):
-        with patch.object(updater, "_run_git", side_effect=FileNotFoundError):
-            assert updater.is_git_repo() is False
+    def test_missing_proc_is_not_overlay(self):
+        with patch("builtins.open", side_effect=OSError):
+            assert is_overlay_root() is False
 
 
-class TestRunUpdate:
-    def _fake_popen(self, lines):
-        proc = MagicMock()
-        proc.stdout = iter(lines)
-        proc.returncode = 0
-        proc.wait.return_value = 0
-        return proc
+class TestCheckForUpdate:
+    def test_reports_behind_count(self):
+        def fake_run(cmd, **kwargs):
+            if cmd[1] == "fetch":
+                return CompletedProcess(cmd, 0)
+            return CompletedProcess(cmd, 0, stdout="3\n")
 
-    def test_reports_increasing_progress_and_succeeds(self):
-        updater._cancel_event.clear()
-        progress_calls = []
+        with patch("server.updater.subprocess.run", side_effect=fake_run):
+            assert check_for_update() == {"behind": 3}
 
-        git_results = {
-            "rev-parse_HEAD": _completed("oldsha\n"),
-            "branch": _completed("dev\n"),
-            "merge": _completed("Updating\n"),
-        }
+    def test_up_to_date_returns_none(self):
+        def fake_run(cmd, **kwargs):
+            if cmd[1] == "fetch":
+                return CompletedProcess(cmd, 0)
+            return CompletedProcess(cmd, 0, stdout="0\n")
 
-        def fake_run_git(args, **kw):
-            if args[:2] == ["rev-parse", "--abbrev-ref"]:
-                return git_results["branch"]
-            if args[:1] == ["merge"]:
-                return git_results["merge"]
-            if args[:1] == ["rev-parse"]:
-                return git_results["rev-parse_HEAD"]
-            return _completed()
+        with patch("server.updater.subprocess.run", side_effect=fake_run):
+            assert check_for_update() is None
 
-        lines = [
-            "Counting objects:  50% (5/10)\n",
-            "Receiving objects:  20% (2/10)\n",
-            "Receiving objects: 100% (10/10)\n",
-            "Resolving deltas: 100% (3/3)\n",
-        ]
-
-        with patch.object(updater, "is_git_repo", return_value=True), \
-             patch.object(updater, "_run_git", side_effect=fake_run_git), \
-             patch.object(updater.subprocess, "Popen", return_value=self._fake_popen(lines)):
-            updater.run_update(lambda pct, msg: progress_calls.append((pct, msg)))
-
-        percents = [p for p, _ in progress_calls]
-        assert percents == sorted(percents)  # monotonically increasing
-        assert max(percents) >= 90
-
-    def test_cancel_midway_rolls_back(self):
-        updater._cancel_event.clear()
-
-        def fake_run_git(args, **kw):
-            return _completed("oldsha\n")
-
-        proc = MagicMock()
-        # First line triggers the cancel check
-        proc.stdout = iter(["Receiving objects:  10% (1/10)\n"])
-        proc.returncode = 0
-
-        def progress(pct, msg):
-            updater._cancel_event.set()  # simulate cable unplugged
-
-        with patch.object(updater, "is_git_repo", return_value=True), \
-             patch.object(updater, "_run_git", side_effect=fake_run_git) as mock_git, \
-             patch.object(updater.subprocess, "Popen", return_value=proc):
-            try:
-                updater.run_update(progress)
-            except RuntimeError as exc:
-                assert "abgebrochen" in str(exc).lower()
-            else:
-                raise AssertionError("expected RuntimeError on cancel")
-
-        proc.terminate.assert_called_once()
-        # Rollback uses reset --hard
-        assert any(c.args[0][:1] == ["reset"] for c in mock_git.call_args_list)
-        updater._cancel_event.clear()
-
-    def test_fetch_failure_raises(self):
-        updater._cancel_event.clear()
-        proc = MagicMock()
-        proc.stdout = iter([])
-        proc.returncode = 1
-        proc.wait.return_value = 1
-
-        with patch.object(updater, "is_git_repo", return_value=True), \
-             patch.object(updater, "_run_git", return_value=_completed("oldsha\n")), \
-             patch.object(updater.subprocess, "Popen", return_value=proc):
-            try:
-                updater.run_update(lambda p, m: None)
-            except RuntimeError as exc:
-                assert "fetch" in str(exc).lower()
-            else:
-                raise AssertionError("expected RuntimeError on fetch failure")
-
-    def test_not_a_repo_raises(self):
-        with patch.object(updater, "is_git_repo", return_value=False):
-            try:
-                updater.run_update(lambda p, m: None)
-            except RuntimeError as exc:
-                assert "git" in str(exc).lower()
-            else:
-                raise AssertionError("expected RuntimeError")
+    def test_no_network_is_non_fatal(self):
+        with patch("server.updater.subprocess.run", side_effect=OSError):
+            assert check_for_update() is None
 
 
-class TestStartUpdateAsync:
-    def test_done_called_on_success(self):
-        results = []
-        with patch.object(updater, "run_update") as mock_run, \
-             patch.object(updater, "current_revision", side_effect=["old", "new"]):
-            updater.start_update_async(
-                lambda p, m: None,
-                lambda ok, msg, changed: results.append((ok, msg, changed)),
-            )
-            # The worker runs in a thread; join via the lock
-            with updater._update_lock:
-                pass
-        mock_run.assert_called_once()
-        assert results and results[0][0] is True
-        assert results[0][2] is True  # old != new → changed
+class TestRunUpdateScript:
+    def test_failure_raises(self):
+        failed = CompletedProcess(["bash"], 1, stdout="", stderr="merge conflict")
+        with patch("server.updater.subprocess.run", return_value=failed):
+            with pytest.raises(RuntimeError, match="merge conflict"):
+                run_update_script()
 
-    def test_done_called_on_failure(self):
-        results = []
-        with patch.object(updater, "run_update", side_effect=RuntimeError("boom")), \
-             patch.object(updater, "current_revision", return_value="old"):
-            updater.start_update_async(
-                lambda p, m: None,
-                lambda ok, msg, changed: results.append((ok, msg, changed)),
-            )
-            with updater._update_lock:
-                pass
-        assert results and results[0][0] is False
-        assert "boom" in results[0][1]
+    def test_success_passes(self):
+        ok = CompletedProcess(["bash"], 0, stdout="done", stderr="")
+        with patch("server.updater.subprocess.run", return_value=ok):
+            run_update_script()  # darf nicht werfen

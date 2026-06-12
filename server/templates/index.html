@@ -4,11 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fotobox</title>
-  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/static/style.css?v={{ static_v }}" />
 </head>
 <body>
+  <!-- Blitz-Overlay (wird beim Auslösen kurz eingeblendet) -->
   <div id="flash-overlay"></div>
 
+  <!-- Toast-Benachrichtigung (Ethernet / Auto-Update) -->
   <div id="toast" class="toast" role="status" aria-live="polite">
     <div class="toast-row">
       <div class="toast-icon" id="toast-icon"></div>
@@ -21,6 +23,7 @@
     <div class="toast-progress"><div class="toast-progress-bar" id="toast-progress-bar"></div></div>
   </div>
 
+  <!-- Idle screen -->
   <div id="screen-idle" class="screen active">
     <div class="idle-content">
       <div class="idle-ring" id="trigger-btn" role="button" aria-label="Foto auslösen">
@@ -33,10 +36,11 @@
         </svg>
       </div>
       <h1 class="wordmark">FOTOBOX</h1>
-      <p class="hint">Knopf dr&uuml;cken <span class="hint-sep">oder</span> Kamera antippen</p>
+      <p class="hint">Knopf dr&uuml;cken <span class="hint-sep">oder</span> Bildschirm antippen</p>
     </div>
   </div>
 
+  <!-- Countdown screen -->
   <div id="screen-countdown" class="screen">
     <div class="countdown-content">
       <p class="countdown-label">Bereit machen &hellip;</p>
@@ -45,6 +49,7 @@
     </div>
   </div>
 
+  <!-- Review screen (show captured photo + action buttons) -->
   <div id="screen-review" class="screen">
     <div class="review-content">
       <div class="review-photo-slot">
@@ -76,6 +81,7 @@
     </div>
   </div>
 
+  <!-- QR code screen -->
   <div id="screen-qr" class="screen">
     <div class="qr-content">
       <h2>Deine Fotos</h2>
@@ -91,7 +97,7 @@
             <p><span class="qr-label">WLAN</span> <span id="qr-ssid"></span></p>
             <p><span class="qr-label">Passwort</span> <span id="qr-password"></span></p>
           </div>
-          <button id="btn-qr-next" class="btn">Weiter &rsaquo;</button>
+          <button id="btn-qr-next" class="btn btn-solid">Weiter zum Download &rsaquo;</button>
         </div>
 
         <div class="qr-step qr-page" id="box-download">
@@ -101,7 +107,10 @@
           </div>
           <img id="qr-download-img" class="qr-img" src="" alt="Download QR-Code" />
           <p class="qr-url" id="qr-url"></p>
-          <button id="btn-qr-back" class="btn btn-outline">&lsaquo; Zur&uuml;ck</button>
+          <div class="qr-nav-buttons">
+            <button id="btn-qr-back" class="btn btn-outline btn-qr-nav">&lsaquo; Zur&uuml;ck zur WLAN-Verbindung</button>
+            <button id="btn-qr-home" class="btn btn-solid btn-qr-nav">Home</button>
+          </div>
         </div>
       </div>
 
@@ -109,6 +118,47 @@
     </div>
   </div>
 
+  <!-- Shutdown-Menü (5× schnell den Knopf drücken) -->
+  <div id="screen-shutdown" class="screen">
+    <div class="shutdown-content">
+      <svg class="shutdown-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 3v9" />
+        <path d="M6.6 6.6a8 8 0 1 0 10.8 0" />
+      </svg>
+      <h2 class="shutdown-title">Fotobox ausschalten?</h2>
+      <p class="shutdown-hint">Alle Dienste werden gestoppt.</p>
+      <div class="shutdown-buttons">
+        <button id="btn-shutdown-cancel" class="btn btn-outline">Abbrechen</button>
+        <button id="btn-shutdown-confirm" class="btn btn-solid">Herunterfahren</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PIN-Eingabe (Update installieren) -->
+  <div id="pin-modal" class="pin-modal">
+    <div class="pin-box" id="pin-box">
+      <p class="pin-title">Update installieren</p>
+      <p class="pin-hint">PIN eingeben</p>
+      <div class="pin-dots" id="pin-dots"></div>
+      <div class="pin-pad" id="pin-pad">
+        <button class="pin-key" data-key="1">1</button>
+        <button class="pin-key" data-key="2">2</button>
+        <button class="pin-key" data-key="3">3</button>
+        <button class="pin-key" data-key="4">4</button>
+        <button class="pin-key" data-key="5">5</button>
+        <button class="pin-key" data-key="6">6</button>
+        <button class="pin-key" data-key="7">7</button>
+        <button class="pin-key" data-key="8">8</button>
+        <button class="pin-key" data-key="9">9</button>
+        <button class="pin-key pin-key-dim" data-key="clear">C</button>
+        <button class="pin-key" data-key="0">0</button>
+        <button class="pin-key pin-key-dim" data-key="cancel">&#10005;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error overlay -->
   <div id="screen-error" class="screen">
     <div class="error-content">
       <div class="error-icon">!</div>
@@ -121,7 +171,8 @@
   <script>
     const REVIEW_SECONDS = {{ review_seconds }};
     const QR_TIMEOUT_SECONDS = {{ qr_timeout_seconds }};
+    const UPDATE_PIN_LENGTH = {{ update_pin_length }};
   </script>
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v={{ static_v }}"></script>
 </body>
 </html>

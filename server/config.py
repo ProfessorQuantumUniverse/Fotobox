@@ -40,20 +40,31 @@ QR_TIMEOUT_SECONDS = int(os.environ.get("FOTOBOX_QR_TIMEOUT_SECONDS", "120"))
 # (20+ MP) bringen den Chromium auf dem Pi 3 ans Limit – die Preview nicht.
 PREVIEW_MAX_SIZE = int(os.environ.get("FOTOBOX_PREVIEW_MAX_SIZE", "1280"))
 
-# --- Auto-Update über Ethernet ---
-# Solange ein LAN-Kabel steckt, prüft die Box im festen Takt still im
-# Hintergrund auf eine neuere Version (git) und zieht sie automatisch.
-# Ein Toast erscheint NUR, wenn tatsächlich eine neue Version geladen wurde.
-# Offline/ausgesteckt passiert nichts – keine Fehlermeldungen.
-ETH_IFACE = os.environ.get("FOTOBOX_ETH_IFACE", "eth0")
-AUTO_UPDATE = os.environ.get("FOTOBOX_AUTO_UPDATE", "1") == "1"
-# Takt der Update-Prüfung in Sekunden (Default 10).
-ETH_POLL_INTERVAL = float(os.environ.get("FOTOBOX_ETH_POLL_INTERVAL", "10"))
-
 # --- Kamera-Stromüberwachung ---
 # Takt (Sekunden), in dem der Lade-/Akkustatus der Kamera abgefragt wird.
 # Toast erscheint nur bei einem Wechsel (Laden beginnt/endet). 0 = aus.
 CAMERA_POWER_POLL = float(os.environ.get("FOTOBOX_CAMERA_POWER_POLL", "30"))
+
+# --- USB-Stick-Backup ---
+# Steckt ein USB-Stick, wird jedes Foto (auch abgebrochene Sessions) zusätzlich
+# darauf gesichert. 0 = aus.
+USB_BACKUP = os.environ.get("FOTOBOX_USB_BACKUP", "1") == "1"
+# Wo nach gemounteten Sticks gesucht wird (Raspberry Pi OS automountet unter
+# /media/<user>/<label>).
+USB_MOUNT_ROOTS = tuple(
+    p for p in os.environ.get("FOTOBOX_USB_MOUNT_ROOTS", "/media:/mnt").split(":") if p
+)
+# Unterordner auf dem Stick, in den kopiert wird.
+USB_BACKUP_SUBDIR = os.environ.get("FOTOBOX_USB_BACKUP_SUBDIR", "Fotobox")
+# Takt (Sekunden), in dem auf Ein-/Ausstecken eines Sticks geprüft wird. 0 = aus.
+USB_POLL = float(os.environ.get("FOTOBOX_USB_POLL", "3"))
+
+# --- Updates (manuell, per Toast angeboten) ---
+# PIN, die am Kiosk eingegeben werden muss, um ein angebotenes Update zu
+# installieren. Bewusst simpel – der Dialog ist nur am lokalen Kiosk erreichbar.
+UPDATE_PIN = os.environ.get("FOTOBOX_UPDATE_PIN", "5050")
+# Takt (Sekunden), in dem auf neue Commits geprüft wird (git fetch). 0 = aus.
+UPDATE_CHECK_INTERVAL = float(os.environ.get("FOTOBOX_UPDATE_CHECK_INTERVAL", "300"))
 
 # --- Access Point ---
 AP_IFACE = os.environ.get("FOTOBOX_AP_IFACE", "wlan0")

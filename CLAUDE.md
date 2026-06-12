@@ -63,6 +63,8 @@ The system is a Flask web app that runs on a Raspberry Pi 3 and drives a kiosk d
 - `server/access_point.py` — wraps `nmcli` with profile reuse; requires `sudo` on the Pi
 - `server/nextcloud_client.py` — WebDAV + OCS API; every request has a timeout; uploads happen in a daemon thread after the share link is already returned
 - `server/previews.py` — cached downscaled previews via Pillow `draft()` decoding
+- `server/updater.py` — manual update offer: overlay detection, `git fetch` check, `update.sh` runner, reboot
+- `server/usb_backup.py` — copies photos to a mounted USB stick; a poll loop in `app.py` toasts on insert/removal and bulk-backs-up on insert. **A headless Pi has no automounter**, so a stick sits unmounted and is never found. Run `sudo ./setup-usb-automount.sh` once: it installs a udev rule + systemd templates that auto-mount any inserted stick to `/media/usb-<dev>` **with `fotobox` ownership** (the detection in `find_usb_mount` requires write access — a plain root `mount` fails `os.access(W_OK)` and produces no toast). Handles vfat/exFAT/NTFS/ext4.
 
 ## Configuration (via env vars or `.env` — see `.env.example` for the full list)
 
@@ -78,6 +80,17 @@ The system is a Flask web app that runs on a Raspberry Pi 3 and drives a kiosk d
 | `FOTOBOX_REVIEW_SECONDS` | `30` | Auto-reset of the review screen (0 = off) |
 | `FOTOBOX_QR_TIMEOUT_SECONDS` | `120` | Auto-reset of the QR screen (0 = off) |
 | `FOTOBOX_PREVIEW_MAX_SIZE` | `1280` | Max edge length of preview images |
+| `FOTOBOX_USB_BACKUP` | `1` | Copy every captured photo to a mounted USB stick (0 = off) |
+| `FOTOBOX_USB_MOUNT_ROOTS` | `/media:/mnt` | Colon-separated roots scanned for a mounted stick |
+| `FOTOBOX_USB_BACKUP_SUBDIR` | `Fotobox` | Target folder on the stick |
+| `FOTOBOX_UPDATE_PIN` | `5050` | PIN for installing offered updates at the kiosk |
+| `FOTOBOX_UPDATE_CHECK_INTERVAL` | `300` | Seconds between update checks (`git fetch`), 0 = off |
+
+**Shutdown & power resilience:** Pressing the physical button **5× quickly** (within 4 s) during the countdown opens a shutdown menu (`screen-shutdown`); confirming hits `POST /system/shutdown` (localhost-only) which tears down the AP, `sync`s, and runs `sudo shutdown` (passwordless sudoers rule installed by `setup.sh`). The Arduino firmware (`arduino/fotobox_trigger`) detects the 5-tap burst itself: `runCountdown()` polls the button via `interruptibleDelay()` and **aborts the capture** (no `countdown_complete`, no flash, no photo) once the threshold is hit. For unclean power-offs (yanking the plug), run `sudo ./enable-readonly-fs.sh` to put the root filesystem on a read-only overlay so the SD card/services survive — photos then live only on the USB stick. A frontend capture watchdog returns the UI to idle if a capture hangs without producing a photo or error.
+
+**Updates (offered, never automatic):** A background loop (`_update_check_loop`) runs `git fetch` every `FOTOBOX_UPDATE_CHECK_INTERVAL` seconds; if the remote is ahead, the UI shows a **persistent, tappable toast** (no timeout — it goes away only when tapped, or when a photo session starts). Tapping it opens an on-screen PIN pad (`FOTOBOX_UPDATE_PIN`, default `5050`); the correct PIN hits `POST /system/update` (localhost-only, `hmac.compare_digest`) which runs `update.sh` (git pull --ff-only, pip install, re-chmod scripts) and reboots via the existing `sudo shutdown -r` sudoers rule. If the read-only overlay is active (`server/updater.py:is_overlay_root`), the endpoint refuses with 409 since the update wouldn't survive a reboot.
+
+**Idle-screen input:** Tapping anywhere on the idle screen triggers a photo (`POST /trigger`) — EXCEPT the top-right third (x > ⅔·width, y < ⅓·height): 5 taps there within 4 s open the shutdown menu and single taps there never trigger a photo. `index.html` loads `app.js`/`style.css` with `?v=<server-start-time>` so the kiosk browser never runs stale assets after a deploy (assets are otherwise cached 1 h).
 
 ## Dev without hardware
 
