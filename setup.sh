@@ -4,9 +4,10 @@ set -euo pipefail
 
 echo "=== Fotobox Setup ==="
 
-# System packages
+# System packages (inkl. nackter X-Server + Chromium für den Kiosk ohne Desktop)
 sudo apt-get update
-sudo apt-get install -y gphoto2 libgphoto2-dev python3-pip python3-venv
+sudo apt-get install -y gphoto2 libgphoto2-dev python3-pip python3-venv \
+  xserver-xorg xinit x11-xserver-utils chromium-browser
 
 # Python virtual environment
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -35,6 +36,22 @@ sudo cp fotobox-kiosk.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable fotobox.service
 
+# Kiosk-Boot OHNE Desktop einrichten.
+#
+# WICHTIG: Bootet der Pi in den Desktop (PIXEL/LXDE), besitzt dieser bereits
+# Display :0 – der Kiosk-Dienst kann dann mit `xinit ... :0` KEINEN zweiten
+# X-Server starten und crasht in einer Endlosschleife (man landet auf dem
+# Desktop). Darum den Pi auf "Console Autologin" stellen und erst dann den
+# Kiosk-Dienst aktivieren.
+if command -v raspi-config >/dev/null 2>&1; then
+  # B2 = Console Autologin (loggt den Pi-User auf tty1 ein, kein Desktop).
+  sudo raspi-config nonint do_boot_behaviour B2 || \
+    echo ">> Konnte Boot-Verhalten nicht automatisch setzen – bitte manuell: raspi-config → Console Autologin"
+else
+  echo ">> raspi-config nicht gefunden – Boot-Verhalten bitte manuell auf Console Autologin stellen."
+fi
+sudo systemctl enable fotobox-kiosk.service
+
 # Passwortloses Herunterfahren für das Shutdown-Menü (5× Knopf drücken).
 # Erlaubt der Fotobox NUR den Shutdown-Befehl – sonst nichts.
 SUDO_USER_NAME="$(id -un)"
@@ -45,10 +62,11 @@ sudo chmod 0440 /etc/sudoers.d/fotobox-shutdown
 echo ""
 echo "Setup complete.  Start with:  sudo systemctl start fotobox"
 echo ""
-echo "Kiosk ohne Desktop (empfohlen auf dem Pi 3):"
-echo "  1. raspi-config → System Options → Boot / Auto Login → Console Autologin"
-echo "  2. sudo apt-get install -y xserver-xorg xinit chromium-browser"
-echo "  3. sudo systemctl enable --now fotobox-kiosk.service"
+echo "Kiosk (Chromium ohne Desktop) ist eingerichtet und für den nächsten Boot"
+echo "aktiviert. Nach 'sudo reboot' startet die Fotobox automatisch im Vollbild."
+echo "Falls noch ein Desktop erscheint, prüfen:"
+echo "  sudo raspi-config nonint get_boot_behaviour   # muss B2 ergeben"
+echo "  journalctl -u fotobox-kiosk -b --no-pager | tail -30"
 echo ""
 echo "USB-Stick-Backup (headless: ohne Auto-Mount findet die Fotobox keinen Stick!):"
 echo "  Einmalig einrichten:   sudo ./setup-usb-automount.sh"

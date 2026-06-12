@@ -42,7 +42,12 @@ html, body {
   position: fixed;           /* iOS/Touch: Gummiband-Scrollen unterbinden */
   inset: 0;
   overscroll-behavior: none;
-  touch-action: none;        /* kein Pinch-Zoom, kein Scroll-Gesten */
+  /* manipulation statt none: unterbindet Pinch-/Doppeltipp-Zoom und die
+     300 ms-Tap-Verzögerung, ABER lässt den Tap->click-Event durch. Mit
+     touch-action:none unterdrückt Chromium auf Touchscreens das aus dem Tap
+     synthetisierte click – dann reagiert die Box nur auf Maus, nicht auf
+     Finger. Scrollen ist via overflow:hidden + position:fixed eh blockiert. */
+  touch-action: manipulation;
   background: var(--bg);
   color: var(--fg);
   font-family: var(--font);
