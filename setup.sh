@@ -50,6 +50,12 @@ if command -v raspi-config >/dev/null 2>&1; then
 else
   echo ">> raspi-config nicht gefunden – Boot-Verhalten bitte manuell auf Console Autologin stellen."
 fi
+
+# Xorg.wrap erlaubt den X-Server standardmäßig nur für echte Console-Logins.
+# systemd-gestartete Dienste haben kein VT-Login → Xorg verweigert den Start.
+# allowed_users=anybody hebt diese Einschränkung für den Kiosk-Pi auf.
+echo -e "allowed_users=anybody\nneeds_root_rights=no" | sudo tee /etc/X11/Xwrapper.config >/dev/null
+
 sudo systemctl enable fotobox-kiosk.service
 
 # Passwortloses Herunterfahren für das Shutdown-Menü (5× Knopf drücken).
