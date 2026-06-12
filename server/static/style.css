@@ -61,15 +61,22 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
   align-items: center;
   justify-content: center;
   opacity: 0;
+  /* visibility:hidden deaktiviert den GANZEN Teilbaum – sonst reaktiviert ein
+     Kind mit pointer-events:auto (z. B. .qr-page.active) den inaktiven Screen
+     und legt sich unsichtbar über den Idle-Screen, der dann keine Taps mehr
+     bekommt. visibility wird erst nach dem Ausblenden umgeschaltet. */
+  visibility: hidden;
   pointer-events: none;
   transform: translateY(12px);
-  transition: opacity 0.35s ease, transform 0.35s ease;
+  transition: opacity 0.35s ease, transform 0.35s ease, visibility 0s linear 0.35s;
 }
 
 .screen.active {
   opacity: 1;
+  visibility: visible;
   pointer-events: auto;
   transform: translateY(0);
+  transition: opacity 0.35s ease, transform 0.35s ease, visibility 0s;
 }
 
 /* ── Blitz-Overlay ───────────────────────────── */
@@ -522,7 +529,9 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
   transition: opacity 0.35s ease, transform 0.35s ease;
 }
 
-.qr-page.active {
+/* Nur sichtbar, wenn der QR-Screen selbst aktiv ist – sonst legt sich die
+   „aktive“ Seite (box-wifi) unsichtbar über den Idle-Screen und frisst Taps. */
+.screen.active .qr-page.active {
   visibility: visible;
   opacity: 1;
   transform: translateY(0);
