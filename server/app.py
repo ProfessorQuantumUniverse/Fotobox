@@ -367,6 +367,34 @@ def system_shutdown():
     return jsonify({"status": "shutting_down"})
 
 
+def _do_reboot() -> None:
+    """Bring everything down cleanly, then reboot the Pi.
+
+    Wie ``_do_shutdown``, nur ``shutdown -r`` statt ``-h`` – dieselbe sudoers-
+    Regel deckt beides ab.
+    """
+    try:
+        stop_ap()
+    except Exception as exc:  # pragma: no cover - best effort
+        logger.warning("stop_ap during reboot failed: %s", exc)
+    try:
+        subprocess.run(["sync"], timeout=10)
+    except Exception:  # pragma: no cover - best effort
+        pass
+    try:
+        subprocess.run(["sudo", "shutdown", "-r", "now"], timeout=10)
+    except Exception as exc:  # pragma: no cover - best effort
+        logger.error("reboot command failed: %s", exc)
+
+
+@app.route("/system/reboot", methods=["POST"])
+def system_reboot():
+    """Gracefully reboot the Pi (localhost-only, kiosk shutdown menu)."""
+    logger.info("Reboot requested via kiosk menu")
+    Thread(target=_do_reboot, daemon=True).start()
+    return jsonify({"status": "rebooting"})
+
+
 @app.route("/trigger", methods=["POST"])
 def trigger():
     """Simuliert den physischen Button aus der WebUI heraus."""

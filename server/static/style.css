@@ -370,6 +370,7 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
 
 .shutdown-buttons {
   display: flex;
+  flex-wrap: wrap;
   gap: 1.5rem;
   justify-content: center;
   margin-top: 0.6rem;

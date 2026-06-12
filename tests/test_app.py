@@ -184,6 +184,28 @@ class TestSystemShutdown:
         resp = client.post("/system/shutdown", environ_base={"REMOTE_ADDR": "10.42.0.55"})
         assert resp.status_code == 403
 
+    def test_reboot_triggers_command(self, client):
+        def run_inline(target, daemon=False):
+            class _T:
+                def start(self_inner):
+                    target()
+            return _T()
+
+        with patch("server.app.Thread", side_effect=run_inline), \
+             patch("server.app.stop_ap") as mock_stop, \
+             patch("server.app.subprocess.run") as mock_run:
+            resp = client.post("/system/reboot")
+
+        assert resp.status_code == 200
+        assert json.loads(resp.data)["status"] == "rebooting"
+        mock_stop.assert_called_once()
+        # Letzter Aufruf muss der reboot-Befehl sein.
+        assert mock_run.call_args_list[-1].args[0][:3] == ["sudo", "shutdown", "-r"]
+
+    def test_reboot_is_localhost_only(self, client):
+        resp = client.post("/system/reboot", environ_base={"REMOTE_ADDR": "10.42.0.55"})
+        assert resp.status_code == 403
+
 
 
 class TestSystemUpdate:

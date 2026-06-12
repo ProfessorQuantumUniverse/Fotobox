@@ -34,6 +34,7 @@
 
   // Shutdown-Menü
   var btnShutdownCancel  = document.getElementById("btn-shutdown-cancel");
+  var btnShutdownReboot  = document.getElementById("btn-shutdown-reboot");
   var btnShutdownConfirm = document.getElementById("btn-shutdown-confirm");
 
   function showQrPage(id) {
@@ -263,9 +264,18 @@
   if (btnShutdownCancel) {
     btnShutdownCancel.addEventListener("click", closeShutdownMenu);
   }
+  if (btnShutdownReboot) {
+    btnShutdownReboot.addEventListener("click", function () {
+      btnShutdownReboot.disabled = true;
+      if (btnShutdownConfirm) { btnShutdownConfirm.disabled = true; }
+      fetch("/system/reboot", { method: "POST" })
+        .catch(function (err) { console.error("reboot error:", err); });
+    });
+  }
   if (btnShutdownConfirm) {
     btnShutdownConfirm.addEventListener("click", function () {
       btnShutdownConfirm.disabled = true;
+      if (btnShutdownReboot) { btnShutdownReboot.disabled = true; }
       fetch("/system/shutdown", { method: "POST" })
         .catch(function (err) { console.error("shutdown error:", err); });
     });
