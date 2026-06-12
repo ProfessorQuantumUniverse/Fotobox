@@ -10,8 +10,7 @@
         "FOTOBOX_PORT": "5050",
         "FOTOBOX_SHARE_MODE": "hotspot",
         "FOTOBOX_PHOTO_DIR": "/tmp/fotobox-shots",
-        "FOTOBOX_AUTO_UPDATE": "0",
-        "FOTOBOX_ETH_IFACE": "eth-none"
+        "FOTOBOX_UPDATE_CHECK_INTERVAL": "0"
       }
     }
   ]

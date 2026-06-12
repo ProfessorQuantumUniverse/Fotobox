@@ -5,6 +5,7 @@ to the browser via Server-Sent Events (SSE).
 """
 
 import base64
+import hmac
 import io
 import json
 import logging
@@ -29,11 +30,14 @@ from server.config import (
     PORT,
     QR_TIMEOUT_SECONDS,
     REVIEW_SECONDS,
+    UPDATE_CHECK_INTERVAL,
+    UPDATE_PIN,
     USB_BACKUP,
     USB_POLL,
 )
 from server.previews import get_or_create_preview, warm_preview_async
 from server.serial_reader import SerialReader
+from server.updater import check_for_update, is_overlay_root, reboot, run_update_script
 from server.usb_backup import backup_all_async, backup_photo_async, find_usb_mount
 
 logging.basicConfig(
@@ -46,6 +50,10 @@ app = Flask(__name__)
 # Static assets ändern sich nur bei Deployments – aggressives Browser-Caching
 # spart dem Pi 3 bei jedem Guest-Request Disk-I/O und CPU.
 app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 3600
+
+# Cache-Buster für app.js/style.css: ändert sich bei jedem Server-Start, damit
+# der Kiosk-Browser nach einem Deployment nie mit veralteten Assets läuft.
+STATIC_VERSION = int(time.time())
 
 # Thread-safe queue for pushing events to SSE clients
 event_queue: queue.Queue = queue.Queue()
@@ -145,6 +153,53 @@ def _usb_storage_loop() -> None:
             logger.info("USB stick removed")
             event_queue.put({"event": "usb_storage", "data": {"present": False}})
 
+# ── Update-Prüfung (manuell installiert, nur angeboten) ─────────────────
+
+def _update_check_loop() -> None:
+    """Poll the git remote and offer available updates to the kiosk UI.
+
+    Es wird NICHTS automatisch installiert. Gibt es neue Commits, bekommt die
+    UI ein ``update_available``-Event und zeigt eine antippbare Toast; die
+    Installation startet erst nach PIN-Eingabe über POST /system/update.
+    """
+    while True:
+        info = check_for_update()
+        if info:
+            event_queue.put({"event": "update_available", "data": info})
+        time.sleep(UPDATE_CHECK_INTERVAL)
+
+
+def _do_update() -> None:
+    """Run update.sh, report progress to the UI, then reboot the Pi."""
+    try:
+        event_queue.put({"event": "update_progress",
+                         "data": {"percent": 15, "message": "Neuer Code wird geladen"}})
+        run_update_script()
+        event_queue.put({"event": "update_progress",
+                         "data": {"percent": 90, "message": "Neustart"}})
+        reboot()
+    except Exception as exc:
+        logger.error("Update failed: %s", exc)
+        event_queue.put({"event": "update_failed", "data": {"message": str(exc)}})
+
+
+@app.route("/system/update", methods=["POST"])
+def system_update():
+    """Install an offered update (localhost-only, PIN-protected)."""
+    data = request.get_json(silent=True) or {}
+    pin = str(data.get("pin", ""))
+    if not hmac.compare_digest(pin, UPDATE_PIN):
+        return jsonify({"error": "PIN falsch"}), 403
+    if is_overlay_root():
+        return jsonify({
+            "error": "Read-Only-System aktiv – Overlay zuerst deaktivieren "
+                     "(sudo raspi-config nonint disable_overlayfs && sudo reboot)"
+        }), 409
+    logger.info("Update gestartet (PIN korrekt)")
+    Thread(target=_do_update, daemon=True).start()
+    return jsonify({"status": "updating"})
+
+
 # ── Kamera-Stromüberwachung (USB-Laden) ──────────────────────────────────
 
 def _camera_power_loop() -> None:
@@ -175,6 +230,8 @@ def index():
         "index.html",
         review_seconds=REVIEW_SECONDS,
         qr_timeout_seconds=QR_TIMEOUT_SECONDS,
+        update_pin_length=len(UPDATE_PIN),
+        static_v=STATIC_VERSION,
     )
 
 
@@ -389,6 +446,8 @@ if __name__ == "__main__":
         Thread(target=_camera_power_loop, daemon=True).start()
     if USB_BACKUP and USB_POLL > 0:
         Thread(target=_usb_storage_loop, daemon=True).start()
+    if UPDATE_CHECK_INTERVAL > 0:
+        Thread(target=_update_check_loop, daemon=True).start()
     logger.info("Fotobox running")
     try:
         app.run(host=HOST, port=PORT, debug=False, threaded=True)

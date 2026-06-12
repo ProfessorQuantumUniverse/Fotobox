@@ -186,6 +186,40 @@ class TestSystemShutdown:
 
 
 
+class TestSystemUpdate:
+    """Updates werden nur angeboten – installiert wird erst nach PIN-Eingabe."""
+
+    def test_wrong_pin_rejected(self, client):
+        resp = client.post("/system/update", json={"pin": "0000"})
+        assert resp.status_code == 403
+
+    def test_missing_pin_rejected(self, client):
+        resp = client.post("/system/update", json={})
+        assert resp.status_code == 403
+
+    def test_overlay_blocks_update(self, client):
+        with patch("server.app.is_overlay_root", return_value=True):
+            resp = client.post("/system/update", json={"pin": "5050"})
+        assert resp.status_code == 409
+        assert "Read-Only" in json.loads(resp.data)["error"]
+
+    def test_correct_pin_starts_update(self, client):
+        with patch("server.app.is_overlay_root", return_value=False), \
+             patch("server.app.Thread") as mock_thread:
+            resp = client.post("/system/update", json={"pin": "5050"})
+        assert resp.status_code == 200
+        assert json.loads(resp.data)["status"] == "updating"
+        mock_thread.assert_called_once()
+
+    def test_update_is_localhost_only(self, client):
+        resp = client.post(
+            "/system/update",
+            json={"pin": "5050"},
+            environ_base={"REMOTE_ADDR": "10.42.0.55"},
+        )
+        assert resp.status_code == 403
+
+
 class TestTrigger:
     """Tests for the WebUI trigger endpoint."""
 

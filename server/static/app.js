@@ -31,6 +31,7 @@
   var qrUrl         = document.getElementById("qr-url");
   var btnQrNext     = document.getElementById("btn-qr-next");
   var btnQrBack     = document.getElementById("btn-qr-back");
+  var btnQrHome     = document.getElementById("btn-qr-home");
 
   // Shutdown-Menü
   var btnShutdownCancel  = document.getElementById("btn-shutdown-cancel");
@@ -54,6 +55,11 @@
   }
   if (btnQrBack) {
     btnQrBack.addEventListener("click", function () { showQrPage("box-wifi"); });
+  }
+  if (btnQrHome) {
+    // Zurück zur Startseite – der Hotspot bleibt an, damit Gäste in Ruhe
+    // fertig herunterladen können (er wird bei der nächsten Session erneuert).
+    btnQrHome.addEventListener("click", returnToIdle);
   }
 
   var countdownInterval = null;
@@ -83,6 +89,7 @@
     check: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>',
     usb: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V4"/><path d="M9 7l3-3 3 3"/><circle cx="12" cy="21" r="1"/><path d="M8 14l-2 2v2"/><circle cx="6" cy="19" r="1"/><path d="M16 12l2 2v3"/><rect x="16.5" y="9.5" width="3" height="3"/></svg>',
     cross: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+    update: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><path d="M4 19h16"/></svg>',
     spinner: '<div class="toast-spinner"></div>'
   };
 
@@ -113,11 +120,16 @@
 
   // ── Toast ─────────────────────────────────────────────
 
+  // Welche Toast gerade zu sehen ist ("update_offer" macht sie antippbar).
+  var toastKind = null;
+
   function showToast(opts) {
-    // opts: { icon, title, message, percent (number|null), variant, progress (bool), autohide (ms|0) }
+    // opts: { icon, title, message, percent, variant, progress (bool), autohide (ms|0), kind }
     if (toastHideTimer) { clearTimeout(toastHideTimer); toastHideTimer = null; }
+    toastKind = opts.kind || null;
 
     toast.classList.remove("toast-error");
+    toast.classList.toggle("toast-clickable", toastKind === "update_offer");
     if (opts.variant === "error") { toast.classList.add("toast-error"); }
 
     toastIcon.innerHTML = ICONS[opts.icon] || "";
@@ -151,8 +163,17 @@
   }
 
   function hideToast() {
-    toast.classList.remove("show");
+    toastKind = null;
+    toast.classList.remove("show", "toast-clickable");
   }
+
+  // Die Update-Toast bleibt stehen, bis sie angetippt wird (→ PIN-Eingabe)
+  // oder ein Foto gestartet wird – kein Timeout.
+  toast.addEventListener("click", function () {
+    if (toastKind !== "update_offer") { return; }
+    hideToast();
+    openPinModal();
+  });
 
   function triggerFlash() {
     flashOverlay.classList.remove("flash");
@@ -258,6 +279,99 @@
     });
   }
 
+  // ── PIN-Eingabe → Update installieren ────────────────
+  // Die Update-Toast antippen öffnet dieses Pad. Richtige PIN → das Update
+  // läuft (git pull, Abhängigkeiten, Skripte), danach startet die Box neu.
+
+  var pinModal = document.getElementById("pin-modal");
+  var pinBox   = document.getElementById("pin-box");
+  var pinDots  = document.getElementById("pin-dots");
+  var pinPad   = document.getElementById("pin-pad");
+  var pinValue = "";
+  var pinBusy  = false;
+
+  function renderPinDots() {
+    pinDots.innerHTML = "";
+    for (var i = 0; i < UPDATE_PIN_LENGTH; i++) {
+      var d = document.createElement("div");
+      d.className = "pin-dot" + (i < pinValue.length ? " filled" : "");
+      pinDots.appendChild(d);
+    }
+  }
+
+  function openPinModal() {
+    pinValue = "";
+    pinBusy = false;
+    renderPinDots();
+    pinModal.classList.add("show");
+  }
+
+  function closePinModal() {
+    pinValue = "";
+    pinModal.classList.remove("show");
+  }
+
+  function submitPin() {
+    pinBusy = true;
+    fetch("/system/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin: pinValue })
+    })
+      .then(function (res) {
+        return res.json().then(function (data) {
+          return { ok: res.ok, status: res.status, data: data };
+        });
+      })
+      .then(function (r) {
+        if (r.ok) {
+          closePinModal();
+          showToast({
+            icon: "spinner", title: "Update läuft",
+            message: "Bitte warten – die Box startet gleich neu",
+            progress: true, percent: 5, autohide: 0, kind: "update_run"
+          });
+          return;
+        }
+        if (r.status === 403) {
+          // Falsche PIN: schütteln, leeren, neuer Versuch.
+          pinValue = "";
+          renderPinDots();
+          pinBusy = false;
+          pinBox.classList.remove("shake");
+          void pinBox.offsetWidth;
+          pinBox.classList.add("shake");
+          return;
+        }
+        // z. B. Read-Only-Overlay aktiv (409)
+        closePinModal();
+        showToast({
+          icon: "cross", title: "Update nicht möglich",
+          message: (r.data && r.data.error) || "Unbekannter Fehler",
+          variant: "error", progress: false, autohide: 8000
+        });
+      })
+      .catch(function () {
+        pinBusy = false;
+        closePinModal();
+        showToast({
+          icon: "cross", title: "Update nicht möglich", message: "Verbindungsfehler",
+          variant: "error", progress: false, autohide: 6000
+        });
+      });
+  }
+
+  pinPad.addEventListener("click", function (e) {
+    var key = e.target && e.target.getAttribute("data-key");
+    if (!key || pinBusy) { return; }
+    if (key === "cancel") { closePinModal(); return; }
+    if (key === "clear")  { pinValue = ""; renderPinDots(); return; }
+    if (pinValue.length >= UPDATE_PIN_LENGTH) { return; }
+    pinValue += key;
+    renderPinDots();
+    if (pinValue.length === UPDATE_PIN_LENGTH) { submitPin(); }
+  });
+
   // ── SSE Connection ──────────────────────────────────
 
   function connectSSE() {
@@ -362,6 +476,46 @@
           }
           break;
 
+        case "update_available":
+          // Update nur auf der Startseite anbieten. Die Toast bleibt stehen,
+          // bis sie angetippt wird (→ PIN) oder ein Foto gestartet wird.
+          if (shutdownActive) { break; }
+          if (toastKind === "update_offer" || toastKind === "update_run") { break; }
+          if (!screenIdle.classList.contains("active")) { break; }
+          if (pinModal.classList.contains("show")) { break; }
+          showToast({
+            icon: "update",
+            title: "Update verfügbar",
+            message: "Antippen zum Installieren",
+            progress: false,
+            autohide: 0,
+            kind: "update_offer"
+          });
+          break;
+
+        case "update_progress":
+          showToast({
+            icon: "spinner",
+            title: "Update läuft",
+            message: msg.data.message || "",
+            progress: true,
+            percent: msg.data.percent || 0,
+            autohide: 0,
+            kind: "update_run"
+          });
+          break;
+
+        case "update_failed":
+          showToast({
+            icon: "cross",
+            title: "Update fehlgeschlagen",
+            message: msg.data.message || "",
+            variant: "error",
+            progress: false,
+            autohide: 8000
+          });
+          break;
+
         case "camera_power":
           // Wechsel des Lade-/Akkustatus der Kamera (USB-Strom).
           if (msg.data.charging) {
@@ -393,6 +547,9 @@
   }
 
   function startCountdownScreen() {
+    // Foto geht vor: ein offenes Update-Angebot verschwindet jetzt (erst
+    // jetzt – die Toast hat keinen Timeout) und der Ablauf läuft normal.
+    if (toastKind === "update_offer") { hideToast(); }
     showScreen(screenCountdown);
     startCountdown();
   }
@@ -438,15 +595,37 @@
     });
   }
 
-  // ── WebUI Trigger ────────────────────────────────────
+  // ── Auslösen per Touch (ganzer Startbildschirm) ───────
+  // Ein Tipp irgendwo auf den Startbildschirm startet den Countdown – nicht
+  // nur das Kamera-Icon (größere Trefferfläche, zuverlässiger auf Touch).
+  // AUSNAHME: das obere rechte Drittel. 5 Taps dort innerhalb von 4 s öffnen
+  // das Shutdown-Menü; einzelne Taps dort lösen NIE ein Foto aus.
 
-  var triggerBtn = document.getElementById("trigger-btn");
-  if (triggerBtn) {
-    triggerBtn.addEventListener("click", function () {
-      fetch("/trigger", { method: "POST" })
-        .catch(function (err) { console.error("Trigger error:", err); });
-    });
-  }
+  var CORNER_TAPS = 5;
+  var CORNER_WINDOW_MS = 4000;
+  var cornerTimestamps = [];
+
+  screenIdle.addEventListener("click", function (e) {
+    if (shutdownActive || pinModal.classList.contains("show")) { return; }
+
+    var inCorner = e.clientX > window.innerWidth * 2 / 3 &&
+                   e.clientY < window.innerHeight / 3;
+    if (inCorner) {
+      var now = Date.now();
+      cornerTimestamps.push(now);
+      cornerTimestamps = cornerTimestamps.filter(function (t) {
+        return now - t <= CORNER_WINDOW_MS;
+      });
+      if (cornerTimestamps.length >= CORNER_TAPS) {
+        cornerTimestamps = [];
+        openShutdownMenu();
+      }
+      return;
+    }
+
+    fetch("/trigger", { method: "POST" })
+      .catch(function (err) { console.error("Trigger error:", err); });
+  });
 
   connectSSE();
 })();

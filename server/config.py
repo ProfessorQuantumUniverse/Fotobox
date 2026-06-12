@@ -59,6 +59,13 @@ USB_BACKUP_SUBDIR = os.environ.get("FOTOBOX_USB_BACKUP_SUBDIR", "Fotobox")
 # Takt (Sekunden), in dem auf Ein-/Ausstecken eines Sticks geprüft wird. 0 = aus.
 USB_POLL = float(os.environ.get("FOTOBOX_USB_POLL", "3"))
 
+# --- Updates (manuell, per Toast angeboten) ---
+# PIN, die am Kiosk eingegeben werden muss, um ein angebotenes Update zu
+# installieren. Bewusst simpel – der Dialog ist nur am lokalen Kiosk erreichbar.
+UPDATE_PIN = os.environ.get("FOTOBOX_UPDATE_PIN", "5050")
+# Takt (Sekunden), in dem auf neue Commits geprüft wird (git fetch). 0 = aus.
+UPDATE_CHECK_INTERVAL = float(os.environ.get("FOTOBOX_UPDATE_CHECK_INTERVAL", "300"))
+
 # --- Access Point ---
 AP_IFACE = os.environ.get("FOTOBOX_AP_IFACE", "wlan0")
 AP_CONNECTION_NAME = os.environ.get("FOTOBOX_AP_CONNECTION_NAME", "fotobox-ap")
