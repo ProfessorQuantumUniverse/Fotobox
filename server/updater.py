@@ -14,7 +14,7 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-# Projekt-Wurzel (= Git-Repo): server/updater.py -> server -> Repo.
+# Root-Project
 REPO_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 UPDATE_SCRIPT = os.path.join(REPO_DIR, "update.sh")
