@@ -84,26 +84,6 @@ img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
   transition: opacity 0.35s ease, transform 0.35s ease, visibility 0s;
 }
 
-/* ── Blitz-Overlay ───────────────────────────── */
-
-#flash-overlay {
-  position: absolute;
-  inset: 0;
-  background: #fff;
-  opacity: 0;
-  pointer-events: none;
-  z-index: 50;
-}
-
-#flash-overlay.flash {
-  animation: flash 0.5s ease-out;
-}
-
-@keyframes flash {
-  0%   { opacity: 0.95; }
-  100% { opacity: 0; }
-}
-
 /* ── Idle ─────────────────────────────────────── */
 
 .idle-content {

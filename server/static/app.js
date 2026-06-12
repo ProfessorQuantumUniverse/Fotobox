@@ -16,7 +16,6 @@
   var errorMessage    = document.getElementById("error-message");
   var countdownDots   = document.getElementById("countdown-dots");
   var countdownNumber = document.getElementById("countdown-number");
-  var flashOverlay    = document.getElementById("flash-overlay");
   var reviewTimerBar  = document.getElementById("review-timer-bar");
 
   // Review buttons
@@ -174,13 +173,6 @@
     hideToast();
     openPinModal();
   });
-
-  function triggerFlash() {
-    flashOverlay.classList.remove("flash");
-    // Reflow erzwingen, damit die Animation erneut startet
-    void flashOverlay.offsetWidth;
-    flashOverlay.classList.add("flash");
-  }
 
   // ── Countdown (Zahl + Punkte) ─────────────────────────
   // Wichtig: erst showScreen() (löscht alte Timer), dann das Intervall setzen.
@@ -409,7 +401,6 @@
 
         case "countdown_complete":
           if (shutdownActive) { break; }  // Menü offen → keine Aufnahme zeigen
-          triggerFlash();
           // Sicherheits-Watchdog: kommt kein Foto/Fehler, zurück zur Homepage.
           clearCaptureWatchdog();
           captureWatchdog = setTimeout(returnToIdle, CAPTURE_TIMEOUT_MS);
