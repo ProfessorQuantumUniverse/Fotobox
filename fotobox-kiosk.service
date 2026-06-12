@@ -1,16 +1,27 @@
 [Unit]
 Description=Fotobox Kiosk Browser (Chromium ohne Desktop)
-After=fotobox.service systemd-user-sessions.service
+After=fotobox.service systemd-user-sessions.service getty@tty1.service
 Wants=fotobox.service
+# getty besitzt tty1 (Console-Autologin). Ohne Freigabe scheitert Xorg mit
+# "xf86OpenConsole: Switching VT failed", weil zwei Prozesse denselben VT wollen.
+Conflicts=getty@tty1.service
 
 [Service]
 Type=simple
 User=fotobox
 PAMName=login
 TTYPath=/dev/tty1
+# X braucht tty1 als kontrollierendes Terminal, sonst kann es den VT nicht
+# halten. StandardInput=tty übergibt es; TTYReset/TTYVHangup räumen sauber auf.
+StandardInput=tty
+StandardOutput=journal
+StandardError=journal
+TTYReset=yes
+TTYVHangup=yes
 WorkingDirectory=/home/fotobox/Fotobox
-# Startet nur den X-Server + Chromium – keine Desktop-Umgebung.
-ExecStart=/usr/bin/xinit /home/fotobox/Fotobox/kiosk.sh -- :0 vt1 -nolisten tcp -nocursor
+# -keeptty: X behält das geerbte tty1 statt einen (scheiternden) VT-Switch zu
+# erzwingen. Startet nur den X-Server + Chromium – keine Desktop-Umgebung.
+ExecStart=/usr/bin/xinit /home/fotobox/Fotobox/kiosk.sh -- :0 vt1 -keeptty -nolisten tcp -nocursor
 Restart=always
 RestartSec=5
 
