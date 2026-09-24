@@ -6,6 +6,12 @@
 
 Schwarz-weißes Kiosk-Interface · WLAN- oder Nextcloud-Sharing · Auto-Update über LAN · komplett ohne Maus & Tastatur bedienbar.
 
+<!-- INSTALL BUTTONS START -->
+<p align="center">
+  <a href="#-schnellstart"><img src="https://img.shields.io/badge/Installieren%20auf-Raspberry%20Pi-C51A4A?style=for-the-badge&logo=raspberrypi&logoColor=white" alt="Installieren auf dem Raspberry Pi" height="40"></a>
+</p>
+<!-- INSTALL BUTTONS END -->
+
 <img src="docs/screenshots/01-idle.png" alt="Fotobox Startbildschirm" width="320" />
 
 </div>
