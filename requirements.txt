@@ -2,6 +2,6 @@ flask>=3.0,<4.0
 pyserial>=3.5,<4.0
 pytest>=8.0,<9.0
 qrcode[pil]>=8.0,<9.0
-Pillow>=11.0,<12.0
+Pillow>=12.3.0,<13.0
 python-dotenv>=1.0,<2.0
 requests>=2.31,<3.0
